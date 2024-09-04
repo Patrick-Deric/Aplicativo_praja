@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class RegisterPrestadorPage extends StatefulWidget {
   @override
@@ -22,22 +24,14 @@ class _RegisterPrestadorPageState extends State<RegisterPrestadorPage> {
   String _jobRole = '';
   String _password = '';
   String _confirmPassword = '';
+  bool _passwordVisible = false;
+  bool _confirmPasswordVisible = false;
 
   // List of Brazilian states
   final List<String> _brazilianStates = [
     'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS',
     'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC',
     'SP', 'SE', 'TO'
-  ];
-
-  // List of job roles
-  final List<String> _jobRoles = [
-    'Encanador', 'Pintor', 'Faxineira', 'Cozinheira', 'Confeiteira', 'Pedreiro',
-    'Eletricista', 'Marceneiro', 'Jardineiro', 'Baba', 'Garçom', 'Vigilante',
-    'Motorista', 'Mecânico', 'Soldador', 'Montador de Móveis', 'Carpinteiro',
-    'Cabeleireiro', 'Manicure', 'Maquiador', 'Costureira', 'Lavadeira',
-    'Passadeira', 'Serralheiro', 'Técnico em Informática', 'Enfermeira',
-    'Professor Particular', 'Instrutor de Autoescola', 'Tatuador'
   ];
 
   Future<void> _register() async {
@@ -50,8 +44,7 @@ class _RegisterPrestadorPageState extends State<RegisterPrestadorPage> {
       }
 
       try {
-        UserCredential userCredential =
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: _email,
           password: _password,
         );
@@ -101,6 +94,29 @@ class _RegisterPrestadorPageState extends State<RegisterPrestadorPage> {
     }
   }
 
+  Future<void> _fetchAddressFromCEP(String cep) async {
+    final String url = 'https://viacep.com.br/ws/$cep/json/';
+    try {
+      final response = await http.get(Uri.parse(url));
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        if (data.containsKey('erro')) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('CEP não encontrado')));
+        } else {
+          setState(() {
+            _state = data['uf'] ?? '';
+            _city = data['localidade'] ?? '';
+            _rua = data['logradouro'] ?? '';
+          });
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao buscar CEP')));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao conectar com API de CEP')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -138,6 +154,7 @@ class _RegisterPrestadorPageState extends State<RegisterPrestadorPage> {
                 key: _formKey,
                 child: Column(
                   children: [
+                    // Full Name Field
                     TextFormField(
                       decoration: InputDecoration(
                         labelText: 'Nome Completo',
@@ -158,6 +175,8 @@ class _RegisterPrestadorPageState extends State<RegisterPrestadorPage> {
                       },
                     ),
                     SizedBox(height: 20),
+
+                    // Gender Dropdown
                     DropdownButtonFormField<String>(
                       decoration: InputDecoration(
                         labelText: 'Gênero',
@@ -187,6 +206,8 @@ class _RegisterPrestadorPageState extends State<RegisterPrestadorPage> {
                       },
                     ),
                     SizedBox(height: 20),
+
+                    // Email Field
                     TextFormField(
                       decoration: InputDecoration(
                         labelText: 'E-mail',
@@ -207,6 +228,8 @@ class _RegisterPrestadorPageState extends State<RegisterPrestadorPage> {
                       },
                     ),
                     SizedBox(height: 20),
+
+                    // CPF Field
                     TextFormField(
                       decoration: InputDecoration(
                         labelText: 'CPF',
@@ -228,53 +251,8 @@ class _RegisterPrestadorPageState extends State<RegisterPrestadorPage> {
                       },
                     ),
                     SizedBox(height: 20),
-                    DropdownButtonFormField<String>(
-                      decoration: InputDecoration(
-                        labelText: 'Estado',
-                        border: OutlineInputBorder(),
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
-                      value: _state.isNotEmpty ? _state : null,
-                      items: _brazilianStates.map((String state) {
-                        return DropdownMenuItem<String>(
-                          value: state,
-                          child: Text(state),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _state = value!;
-                        });
-                      },
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Por favor, selecione seu estado';
-                        }
-                        return null;
-                      },
-                    ),
-                    SizedBox(height: 20),
-                    TextFormField(
-                      decoration: InputDecoration(
-                        labelText: 'Cidade',
-                        border: OutlineInputBorder(),
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
-                      onChanged: (value) {
-                        setState(() {
-                          _city = value;
-                        });
-                      },
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Por favor, insira sua cidade';
-                        }
-                        return null;
-                      },
-                    ),
-                    SizedBox(height: 20),
+
+                    // CEP Field
                     TextFormField(
                       decoration: InputDecoration(
                         labelText: 'CEP',
@@ -287,15 +265,40 @@ class _RegisterPrestadorPageState extends State<RegisterPrestadorPage> {
                         setState(() {
                           _cep = value;
                         });
-                      },
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Por favor, insira seu CEP';
+                        if (value.length == 8) {
+                          _fetchAddressFromCEP(value);
                         }
-                        return null;
                       },
                     ),
                     SizedBox(height: 20),
+
+                    // State Field
+                    TextFormField(
+                      decoration: InputDecoration(
+                        labelText: 'Estado',
+                        border: OutlineInputBorder(),
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                      controller: TextEditingController(text: _state),
+                      readOnly: true,
+                    ),
+                    SizedBox(height: 20),
+
+                    // City Field
+                    TextFormField(
+                      decoration: InputDecoration(
+                        labelText: 'Cidade',
+                        border: OutlineInputBorder(),
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                      controller: TextEditingController(text: _city),
+                      readOnly: true,
+                    ),
+                    SizedBox(height: 20),
+
+                    // Street Field
                     TextFormField(
                       decoration: InputDecoration(
                         labelText: 'Rua',
@@ -303,6 +306,7 @@ class _RegisterPrestadorPageState extends State<RegisterPrestadorPage> {
                         filled: true,
                         fillColor: Colors.white,
                       ),
+                      controller: TextEditingController(text: _rua),
                       onChanged: (value) {
                         setState(() {
                           _rua = value;
@@ -316,6 +320,8 @@ class _RegisterPrestadorPageState extends State<RegisterPrestadorPage> {
                       },
                     ),
                     SizedBox(height: 20),
+
+                    // Number Field
                     TextFormField(
                       decoration: InputDecoration(
                         labelText: 'Número',
@@ -337,41 +343,26 @@ class _RegisterPrestadorPageState extends State<RegisterPrestadorPage> {
                       },
                     ),
                     SizedBox(height: 20),
-                    DropdownButtonFormField<String>(
-                      decoration: InputDecoration(
-                        labelText: 'Profissão',
-                        border: OutlineInputBorder(),
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
-                      value: _jobRole.isNotEmpty ? _jobRole : null,
-                      items: _jobRoles.map<DropdownMenuItem<String>>((String jobRole) {
-                        return DropdownMenuItem<String>(
-                          value: jobRole,
-                          child: Text(jobRole),
-                        );
-                      }).toList(),
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          _jobRole = newValue!;
-                        });
-                      },
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Por favor, selecione sua profissão';
-                        }
-                        return null;
-                      },
-                    ),
-                    SizedBox(height: 20),
+
+                    // Password Field
                     TextFormField(
                       decoration: InputDecoration(
                         labelText: 'Senha',
                         border: OutlineInputBorder(),
                         filled: true,
                         fillColor: Colors.white,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _passwordVisible ? Icons.visibility : Icons.visibility_off,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _passwordVisible = !_passwordVisible;
+                            });
+                          },
+                        ),
                       ),
-                      obscureText: true,
+                      obscureText: !_passwordVisible,
                       onChanged: (value) {
                         setState(() {
                           _password = value;
@@ -385,14 +376,26 @@ class _RegisterPrestadorPageState extends State<RegisterPrestadorPage> {
                       },
                     ),
                     SizedBox(height: 20),
+
+                    // Confirm Password Field
                     TextFormField(
                       decoration: InputDecoration(
                         labelText: 'Confirmar Senha',
                         border: OutlineInputBorder(),
                         filled: true,
                         fillColor: Colors.white,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _confirmPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _confirmPasswordVisible = !_confirmPasswordVisible;
+                            });
+                          },
+                        ),
                       ),
-                      obscureText: true,
+                      obscureText: !_confirmPasswordVisible,
                       onChanged: (value) {
                         setState(() {
                           _confirmPassword = value;
@@ -406,6 +409,8 @@ class _RegisterPrestadorPageState extends State<RegisterPrestadorPage> {
                       },
                     ),
                     SizedBox(height: 40),
+
+                    // Submit Button
                     ElevatedButton(
                       onPressed: _register,
                       style: ElevatedButton.styleFrom(
@@ -427,7 +432,5 @@ class _RegisterPrestadorPageState extends State<RegisterPrestadorPage> {
     );
   }
 }
-
-
 
 
