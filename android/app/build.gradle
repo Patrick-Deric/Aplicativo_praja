@@ -1,0 +1,47 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "kotlin-kapt" // If you use annotation processors
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+android {
+    namespace "com.example.aplicativo_praja"
+    compileSdk flutter.compileSdkVersion
+    ndkVersion flutter.ndkVersion
+
+    defaultConfig {
+        applicationId "com.example.aplicativo_praja"
+        minSdkVersion 23
+        targetSdkVersion flutter.targetSdkVersion
+        versionCode 1  // Explicitly set this value
+        versionName "1.0.0"  // Explicitly set this value
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+}
+
+flutter {
+    source '../..'
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    implementation 'com.google.firebase:firebase-auth:23.0.0'
+    implementation 'com.google.firebase:firebase-firestore:25.1.0'
+}
+
+apply plugin: 'com.google.gms.google-services'
