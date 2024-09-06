@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'terms.dart';  // Import the terms page
 
 class RegisterPrestadorPage extends StatefulWidget {
   @override
@@ -26,6 +27,7 @@ class _RegisterPrestadorPageState extends State<RegisterPrestadorPage> {
   String _confirmPassword = '';
   bool _passwordVisible = false;
   bool _confirmPasswordVisible = false;
+  bool _acceptedTerms = false;  // Track if the user accepted the terms
 
   // List of Brazilian states
   final List<String> _brazilianStates = [
@@ -40,6 +42,13 @@ class _RegisterPrestadorPageState extends State<RegisterPrestadorPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('As senhas não coincidem')),
         );
+        return;
+      }
+
+      if (!_acceptedTerms) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Você deve aceitar os Termos de Uso para prosseguir.'),
+        ));
         return;
       }
 
@@ -408,6 +417,48 @@ class _RegisterPrestadorPageState extends State<RegisterPrestadorPage> {
                         return null;
                       },
                     ),
+
+                    SizedBox(height: 20),
+
+                    // Terms Checkbox and Link to Terms Page
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Checkbox(
+                          value: _acceptedTerms,
+                          onChanged: (bool? value) {
+                            setState(() {
+                              _acceptedTerms = value ?? false;
+                            });
+                          },
+                        ),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => TermsPage()),
+                              );
+                            },
+                            child: Text.rich(
+                              TextSpan(
+                                text: 'Eu li e aceito os ',
+                                children: [
+                                  TextSpan(
+                                    text: 'Termos de Uso',
+                                    style: TextStyle(
+                                      color: Colors.blue,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
                     SizedBox(height: 40),
 
                     // Submit Button
@@ -432,5 +483,3 @@ class _RegisterPrestadorPageState extends State<RegisterPrestadorPage> {
     );
   }
 }
-
-

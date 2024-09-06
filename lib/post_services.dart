@@ -20,8 +20,7 @@ class _PostServiceState extends State<PostService> {
   String _userRole = ''; // Store the user role here
   String _selectedLocation = ''; // CEP or Current Location
   bool _useCurrentLocation = false; // Whether the user chose to use their current location
-
-  Position? _currentPosition; // To store the user's current position
+  Position? _currentPosition;
 
   List<String> _serviceTypes = [
     'Pintor', 'Eletricista', 'Encanador', 'Faxineira', 'Cuidadora', 'Pedreiro',
@@ -44,7 +43,6 @@ class _PostServiceState extends State<PostService> {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       try {
-        // Fetch document from 'users' collection (assuming roles are stored there)
         DocumentSnapshot doc = await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
@@ -55,15 +53,11 @@ class _PostServiceState extends State<PostService> {
 
           if (data != null) {
             setState(() {
-              _cep = data.containsKey('cep') ? data['cep'] : '';
-              _fullName = data.containsKey('fullName') ? data['fullName'] : '';
-              _userRole = data.containsKey('role') ? data['role'] : '';
+              _cep = data['cep'] ?? '';
+              _fullName = data['fullName'] ?? '';
+              _userRole = data['role'] ?? '';
             });
           }
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Document not found for this user')),
-          );
         }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -79,15 +73,18 @@ class _PostServiceState extends State<PostService> {
 
       if (_userRole == 'prestador') {
         if (user != null) {
-          String finalLocation = _useCurrentLocation ? '${_currentPosition?.latitude},${_currentPosition?.longitude}' : _cep;
+          String finalLocation = _useCurrentLocation
+              ? '${_currentPosition?.latitude},${_currentPosition?.longitude}'
+              : _cep;
 
           await FirebaseFirestore.instance.collection('services').add({
             'serviceType': _serviceType,
             'salaryRange': _salaryRange,
             'availableDates': _availableDates.map((e) => e.toIso8601String()).toList(),
             'whatsappContact': _whatsappContact,
-            'location': finalLocation, // Use the selected location (either CEP or current position)
+            'location': finalLocation,
             'providerId': user.uid,
+            'status': 'pending', // Service status is pending upon posting
           });
 
           ScaffoldMessenger.of(context).showSnackBar(
@@ -171,7 +168,6 @@ class _PostServiceState extends State<PostService> {
                 },
               ),
               SizedBox(height: 20),
-
               DropdownButtonFormField<String>(
                 decoration: InputDecoration(
                   labelText: 'Pretensão Salarial',
@@ -199,7 +195,6 @@ class _PostServiceState extends State<PostService> {
                 },
               ),
               SizedBox(height: 20),
-
               ListTile(
                 title: Text('Dias Disponíveis'),
                 subtitle: _availableDates.isNotEmpty
@@ -213,30 +208,6 @@ class _PostServiceState extends State<PostService> {
                 ),
               ),
               SizedBox(height: 20),
-
-              TextFormField(
-                decoration: InputDecoration(
-                  labelText: 'Contato (WhatsApp)',
-                  border: OutlineInputBorder(),
-                  filled: true,
-                  fillColor: Colors.white,
-                ),
-                keyboardType: TextInputType.phone,
-                onChanged: (value) {
-                  setState(() {
-                    _whatsappContact = value;
-                  });
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor, insira o seu número de WhatsApp';
-                  }
-                  return null;
-                },
-              ),
-              SizedBox(height: 20),
-
-              // Option to use CEP or Current Location
               SwitchListTile(
                 title: Text('Usar localização atual'),
                 value: _useCurrentLocation,
@@ -251,7 +222,6 @@ class _PostServiceState extends State<PostService> {
                 },
               ),
               SizedBox(height: 20),
-
               ElevatedButton(
                 onPressed: _submitService,
                 style: ElevatedButton.styleFrom(
@@ -270,4 +240,5 @@ class _PostServiceState extends State<PostService> {
     );
   }
 }
+
 
