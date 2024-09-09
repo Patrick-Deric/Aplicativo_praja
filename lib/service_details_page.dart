@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'chatroom.dart'; // Import ChatRoomPage
 
 class ServiceDetailsPage extends StatefulWidget {
   final String docId; // Required parameter for document ID
@@ -16,13 +17,13 @@ class ServiceDetailsPage extends StatefulWidget {
 class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
   Map<String, dynamic>? _serviceData;
   bool _isLoading = true;
-  String _whatsappNumber = '';
+  String _providerName = ''; // Store the provider name
 
   @override
   void initState() {
     super.initState();
     _fetchServiceDetails();
-    _checkAndDeleteExpiredRequests(); // Remove expired requests
+    _fetchProviderDetails(); // Fetch provider name
   }
 
   // Fetch the service details from Firestore
@@ -44,52 +45,47 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     }
   }
 
-  // Check and remove service requests older than 24 hours
-  Future<void> _checkAndDeleteExpiredRequests() async {
-    final now = DateTime.now();
-    final QuerySnapshot snapshot = await FirebaseFirestore.instance
-        .collection('service_requests')
-        .get();
-
-    for (var doc in snapshot.docs) {
-      Timestamp timestamp = doc['timestamp'];
-      DateTime requestTime = timestamp.toDate();
-      if (now.difference(requestTime).inHours >= 24) {
-        await FirebaseFirestore.instance.collection('service_requests').doc(doc.id).delete();
-      }
-    }
-  }
-
-// Send the WhatsApp number to the service provider
-  Future<void> _sendWhatsappNumber() async {
+  // Fetch provider details (e.g., fullName)
+  Future<void> _fetchProviderDetails() async {
     try {
-      // Debug print to log the data being sent
-      print({
-        'contratanteId': FirebaseAuth.instance.currentUser!.uid,
-        'contratanteWhatsapp': _whatsappNumber,
-        'serviceId': widget.docId,
-        'providerId': _serviceData!['providerId'],
-        'timestamp': Timestamp.now(),
-        'status': 'pending', // Initially pending status
-      });
+      if (_serviceData != null) {
+        String providerId = _serviceData!['providerId'];
+        DocumentSnapshot providerSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(providerId)
+            .get();
 
-      await FirebaseFirestore.instance.collection('service_requests').add({
-        'contratanteId': FirebaseAuth.instance.currentUser!.uid,
-        'contratanteWhatsapp': _whatsappNumber,
-        'serviceId': widget.docId,
-        'providerId': _serviceData!['providerId'],
-        'timestamp': Timestamp.now(),
-        'status': 'pending', // Initially pending status
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Número do WhatsApp enviado com sucesso!')),
-      );
+        if (providerSnapshot.exists) {
+          setState(() {
+            _providerName = providerSnapshot['fullName'] ?? 'Nome não disponível';
+          });
+        }
+      }
     } catch (e) {
-      print('Error sending WhatsApp number: $e');
+      print('Error fetching provider details: $e');
     }
   }
 
+  // Function to start the chat
+  Future<void> _startChat() async {
+    final String contratanteId = FirebaseAuth.instance.currentUser!.uid;
+    final String providerId = _serviceData!['providerId'];
+
+    // Generate chatRoomId by combining contratanteId and providerId
+    String chatRoomId = contratanteId + "_" + providerId;
+
+    // Navigate to the chat room page
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatRoomPage(
+          chatRoomId: chatRoomId, // Pass chatRoomId
+          providerId: providerId, // Pass providerId
+          serviceId: widget.docId, // Pass serviceId
+        ),
+      ),
+    );
+  }
 
   // Format the available dates
   String _formatAvailableDates(List<dynamic>? availableDates) {
@@ -130,6 +126,11 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
               ),
               SizedBox(height: 10),
               Text(
+                'Prestador: $_providerName', // Display provider name
+                style: TextStyle(fontSize: 18, color: Colors.grey[700]),
+              ),
+              SizedBox(height: 10),
+              Text(
                 'Pretensão Salarial: ${_serviceData!['salaryRange'] ?? 'Não disponível'}',
                 style: TextStyle(fontSize: 18, color: Colors.grey[700]),
               ),
@@ -144,31 +145,14 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
                 style: TextStyle(fontSize: 18, color: Colors.grey[700]),
               ),
               SizedBox(height: 20),
-              Text(
-                'Informe seu WhatsApp:',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              TextField(
-                keyboardType: TextInputType.phone,
-                decoration: InputDecoration(
-                  hintText: 'Seu número de WhatsApp',
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (value) {
-                  setState(() {
-                    _whatsappNumber = value;
-                  });
-                },
-              ),
-              SizedBox(height: 20),
               ElevatedButton(
-                onPressed: _whatsappNumber.isEmpty ? null : _sendWhatsappNumber,
+                onPressed: _startChat, // Start chat when pressed
                 style: ElevatedButton.styleFrom(
                   padding: EdgeInsets.symmetric(vertical: 16.0),
                   backgroundColor: Colors.yellow[700],
                 ),
                 child: Text(
-                  'Enviar Número de WhatsApp',
+                  'Entrar em contato com o prestador',
                   style: TextStyle(fontSize: 16),
                 ),
               ),
@@ -179,6 +163,4 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     );
   }
 }
-
-
 

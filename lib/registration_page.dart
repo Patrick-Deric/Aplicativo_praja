@@ -37,12 +37,17 @@ class _RegisterContratantePageState extends State<RegisterContratantePage> {
       }
 
       try {
+        // Create a new user with email and password
         UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: _email,
           password: _password,
         );
 
-        await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
+        // Get the user's UID from FirebaseAuth and add it to the Firestore document
+        String uid = userCredential.user!.uid;
+
+        // Store the user data in Firestore, including the UID
+        await FirebaseFirestore.instance.collection('users').doc(uid).set({
           'fullName': _fullName,
           'email': _email,
           'role': _role,
@@ -52,8 +57,10 @@ class _RegisterContratantePageState extends State<RegisterContratantePage> {
           'state': _state,
           'city': _city,
           'country': _country,
+          'uid': uid, // Add UID to the user document
         });
 
+        // Navigate to the home page or wherever you want after registration
         Navigator.pushReplacementNamed(context, '/');
       } on FirebaseAuthException catch (e) {
         print('Failed with error code: ${e.code}');
@@ -61,6 +68,7 @@ class _RegisterContratantePageState extends State<RegisterContratantePage> {
       }
     }
   }
+
 
   Future<void> _fetchAddressFromCEP(String cep) async {
     final String url = 'https://viacep.com.br/ws/$cep/json/';

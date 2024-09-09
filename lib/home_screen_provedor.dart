@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
+import 'chatlist.dart';
+import 'login_page.dart'; // Import your login page
+
 
 class HomeScreenProvedor extends StatefulWidget {
   @override
@@ -34,6 +37,11 @@ class _HomeScreenProvedorState extends State<HomeScreenProvedor> {
     }
   }
 
+  Future<void> _logout() async {
+    await FirebaseAuth.instance.signOut(); // Log out the user
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginPage())); // Redirect to login page
+  }
+
   Widget _buildCard(String title, IconData icon, VoidCallback onTap) {
     return Card(
       elevation: 4.0,
@@ -57,6 +65,13 @@ class _HomeScreenProvedorState extends State<HomeScreenProvedor> {
       appBar: AppBar(
         title: Text('Bem-vindo'),
         backgroundColor: Colors.yellow[700],
+        actions: [
+          IconButton(
+            icon: Icon(Icons.logout),
+            onPressed: _logout, // Call the logout function
+            tooltip: 'Logout',
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -93,9 +108,18 @@ class _HomeScreenProvedorState extends State<HomeScreenProvedor> {
             _buildCard('Lançar Serviço', Icons.post_add, () {
               Navigator.pushNamed(context, '/post_service'); // Navigate to current page for posting services
             }),
+            SizedBox(height: 10),
+            // New Chats Card
+            _buildCard('Minhas Conversas', Icons.chat, () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => ChatListPage()), // Navigate to chat list page
+              );
+            }),
           ],
         ),
       ),
     );
   }
 }
+

@@ -111,12 +111,22 @@ class _OngoingServicesPageState extends State<OngoingServicesPage> {
       // Remove the service from 'service_requests'
       await FirebaseFirestore.instance.collection('service_requests').doc(requestId).delete();
 
+      // Notify the contratante about the service completion for rating
+      await FirebaseFirestore.instance.collection('service_requests').doc(requestId).update({
+        'status': 'completed', // Mark as completed for contratante to rate
+      });
+
+      // Update the UI
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Serviço concluído com sucesso!')),
       );
     } catch (e) {
       print('Error completing service: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao concluir o serviço.')),
+      );
     }
   }
 }
+
 

@@ -20,7 +20,8 @@ import 'register_user_page.dart';
 import 'blank_page_1.dart';
 import 'blank_page_2.dart';
 import 'service_requests.dart';
-
+import 'chatroom.dart';
+// posso usar o Mapbox ou OpenStreetMap de alternativa para o google maps
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
@@ -90,6 +91,7 @@ class MyApp extends StatelessWidget {
             return MaterialPageRoute(builder: (context) => OngoingServicesContratantePage());
           case '/perfil_contratante':
             return MaterialPageRoute(builder: (context) => ProfileContratantePage());
+
 
           default:
             return null;

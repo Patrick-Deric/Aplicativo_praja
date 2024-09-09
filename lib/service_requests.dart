@@ -52,6 +52,27 @@ class _ServiceRequestsPageState extends State<ServiceRequestsPage> {
     }
   }
 
+  // Function to mark a service as completed by the prestador
+  Future<void> _completeServiceRequest(String requestId, String serviceId) async {
+    try {
+      // Update the status to 'completed' in service_requests
+      await FirebaseFirestore.instance.collection('service_requests').doc(requestId).update({
+        'status': 'completed',
+      });
+
+      // Update the service in the services collection to mark it as 'completed'
+      await FirebaseFirestore.instance.collection('services').doc(serviceId).update({
+        'status': 'completed',
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Serviço finalizado com sucesso!')),
+      );
+    } catch (e) {
+      print('Error completing service: $e');
+    }
+  }
+
   // Function to request a service and move it to service_requests collection
   Future<void> _requestService(String serviceId, String providerId) async {
     final currentUser = FirebaseAuth.instance.currentUser;
@@ -173,11 +194,10 @@ class _ServiceRequestsPageState extends State<ServiceRequestsPage> {
                 'Realizar Serviço',
                 style: TextStyle(fontSize: 16),
               ),
-            ),
+            )
           ],
         ),
       ),
     );
   }
 }
-

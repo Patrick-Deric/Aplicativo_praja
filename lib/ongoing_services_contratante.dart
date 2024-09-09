@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'rate_service.dart';  // Import the rating page
 
 class OngoingServicesContratantePage extends StatefulWidget {
   @override
@@ -21,7 +22,7 @@ class _OngoingServicesContratantePageState extends State<OngoingServicesContrata
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('service_requests')
-            .where('status', isEqualTo: 'ongoing')  // Ongoing services
+            .where('status', whereIn: ['ongoing', 'completed'])  // Fetch both ongoing and completed services
             .where('contratanteId', isEqualTo: userId)  // Only services for this contratante
             .snapshots(),
         builder: (context, snapshot) {
@@ -49,9 +50,11 @@ class _OngoingServicesContratantePageState extends State<OngoingServicesContrata
     );
   }
 
-  // Function to build a card for each ongoing service
+  // Function to build a card for each ongoing or completed service
   Widget _buildOngoingServiceCard(BuildContext context, QueryDocumentSnapshot service) {
     String providerId = service['providerId'];
+    String serviceId = service.id;
+    String status = service['status'];
     Timestamp timestamp = service['timestamp'];
     DateTime requestTime = timestamp.toDate();
     String formattedTime = DateFormat('dd/MM/yyyy HH:mm').format(requestTime);
@@ -64,7 +67,7 @@ class _OngoingServicesContratantePageState extends State<OngoingServicesContrata
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Serviço em Andamento',
+              status == 'completed' ? 'Serviço Concluído' : 'Serviço em Andamento',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 10),
@@ -72,10 +75,35 @@ class _OngoingServicesContratantePageState extends State<OngoingServicesContrata
             SizedBox(height: 10),
             Text('Solicitado em: $formattedTime'),
             SizedBox(height: 10),
+            if (status == 'completed')  // Show rating button if service is completed
+              ElevatedButton(
+                onPressed: () {
+                  _rateService(serviceId, providerId);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  padding: EdgeInsets.symmetric(vertical: 12.0),
+                ),
+                child: Text(
+                  'Avaliar Serviço',
+                  style: TextStyle(fontSize: 16),
+                ),
+              ),
           ],
         ),
       ),
     );
   }
+
+  // Function to navigate to the rate service page
+  void _rateService(String serviceId, String providerId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RateServicePage(serviceId: serviceId, providerId: providerId),
+      ),
+    );
+  }
 }
+
 

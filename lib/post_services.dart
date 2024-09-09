@@ -17,9 +17,9 @@ class _PostServiceState extends State<PostService> {
   String _whatsappContact = '';
   String _cep = '';
   String _fullName = '';
-  String _userRole = ''; // Store the user role here
+  String _userRole = '';
   String _selectedLocation = ''; // CEP or Current Location
-  bool _useCurrentLocation = false; // Whether the user chose to use their current location
+  bool _useCurrentLocation = false;
   Position? _currentPosition;
 
   List<String> _serviceTypes = [
@@ -240,5 +240,4 @@ class _PostServiceState extends State<PostService> {
     );
   }
 }
-
 

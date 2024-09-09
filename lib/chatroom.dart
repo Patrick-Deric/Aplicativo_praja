@@ -1,0 +1,148 @@
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+class ChatRoomPage extends StatefulWidget {
+  final String serviceId;
+  final String providerId;
+  final String chatRoomId; // Passed from previous page
+
+  ChatRoomPage({
+    required this.serviceId,
+    required this.providerId,
+    required this.chatRoomId, // Pass it in the constructor
+  });
+
+  @override
+  _ChatRoomPageState createState() => _ChatRoomPageState();
+}
+
+class _ChatRoomPageState extends State<ChatRoomPage> {
+  String message = '';
+  TextEditingController _messageController = TextEditingController();
+  User? currentUser = FirebaseAuth.instance.currentUser;
+
+  @override
+  void initState() {
+    super.initState();
+    _createOrJoinChatRoom();
+  }
+
+  // Create or join a chat room
+  Future<void> _createOrJoinChatRoom() async {
+    // Use the passed chatRoomId from the widget
+    final roomSnapshot = await FirebaseFirestore.instance
+        .collection('chat_rooms')
+        .doc(widget.chatRoomId)
+        .get();
+
+    if (!roomSnapshot.exists) {
+      // If chat room doesn't exist, create it
+      await FirebaseFirestore.instance.collection('chat_rooms').doc(widget.chatRoomId).set({
+        'users': [currentUser!.uid, widget.providerId],
+        'createdAt': Timestamp.now(),
+      });
+    }
+  }
+
+  // Send message function
+  Future<void> _sendMessage() async {
+    if (message.isEmpty) return;
+
+    await FirebaseFirestore.instance
+        .collection('chat_rooms')
+        .doc(widget.chatRoomId) // Use the chatRoomId from the widget
+        .collection('messages')
+        .add({
+      'message': message,
+      'senderId': currentUser!.uid,
+      'receiverId': widget.providerId,
+      'timestamp': Timestamp.now(),
+    });
+
+    _messageController.clear(); // Clear the text field after sending
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Chat com Prestador'),
+        backgroundColor: Colors.yellow[700],
+      ),
+      body: Column(
+        children: [
+          // Chat messages list
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('chat_rooms')
+                  .doc(widget.chatRoomId) // Use the chatRoomId from the widget
+                  .collection('messages')
+                  .orderBy('timestamp')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return Center(child: CircularProgressIndicator());
+                }
+
+                var messages = snapshot.data!.docs;
+                return ListView.builder(
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    var messageData = messages[index];
+                    bool isMe = messageData['senderId'] == currentUser!.uid;
+
+                    return ListTile(
+                      title: Align(
+                        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                        child: Container(
+                          padding: EdgeInsets.all(8.0),
+                          decoration: BoxDecoration(
+                            color: isMe ? Colors.blue : Colors.grey,
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          child: Text(
+                            messageData['message'],
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+
+          // Message input field
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _messageController,
+                    onChanged: (value) {
+                      setState(() {
+                        message = value;
+                      });
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Digite sua mensagem...',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.send),
+                  onPressed: _sendMessage,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

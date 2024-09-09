@@ -1,15 +1,17 @@
 import 'package:aplicativo_praja/ongoing_services.dart';
 import 'package:aplicativo_praja/profile_contratante.dart';
+import 'package:aplicativo_praja/rate_service.dart';
 import 'package:aplicativo_praja/service_details_page.dart';
 import 'package:aplicativo_praja/profile_page.dart';
 import 'package:aplicativo_praja/login_page.dart';
-import 'package:aplicativo_praja/rate_service.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 
+import 'chatlist.dart';
 import 'ongoing_services_contratante.dart';
 
 class HomePage extends StatefulWidget {
@@ -25,6 +27,7 @@ class _HomePageState extends State<HomePage> {
   bool _locationServiceEnabled = false;
   GoogleMapController? _mapController;
   final Set<Marker> _markers = {};
+  bool _loadingServices = false;  // Keep track of loading state
 
   Future<void> _logoff() async {
     await FirebaseAuth.instance.signOut();
@@ -37,8 +40,18 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _checkInternetConnection();
     _checkLocationPermissions();
     _checkPendingRatings();
+  }
+
+  Future<void> _checkInternetConnection() async {
+    var connectivityResult = await (Connectivity().checkConnectivity());
+    if (connectivityResult == ConnectivityResult.none) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Por favor, verifique sua conexão com a internet.'),
+      ));
+    }
   }
 
   Future<void> _checkLocationPermissions() async {
@@ -56,7 +69,24 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _locationPermissionGranted = false;
       });
+      _showPermissionDialog();
     }
+  }
+
+  void _showPermissionDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Permissão de Localização"),
+        content: Text("Por favor, permita o acesso à localização para usar o mapa."),
+        actions: <Widget>[
+          TextButton(
+            child: Text("Ok"),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _checkLocationServices() async {
@@ -68,6 +98,9 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _locationServiceEnabled = false;
       });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Por favor, ative os serviços de localização.'),
+      ));
     }
   }
 
@@ -76,26 +109,43 @@ class _HomePageState extends State<HomePage> {
 
     try {
       _currentPosition = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-      _loadNearbyProviders(); // This method will load providers and services nearby
+      _loadNearbyProviders(); // Load nearby providers and services
     } catch (e) {
       print('Error getting location: $e');
     }
   }
 
   Future<void> _loadNearbyProviders() async {
-    if (_currentPosition == null) return;
+    if (_currentPosition == null || _loadingServices) return; // Avoid loading multiple times
+
+    setState(() {
+      _loadingServices = true;
+    });
 
     try {
       // Fetch all pending services
       final QuerySnapshot servicesSnapshot = await FirebaseFirestore.instance
           .collection('services')
           .where('status', isEqualTo: 'pending') // Only fetch pending services
+          .limit(50)  // Limit to avoid performance issues
           .get();
 
-      // Iterate over the services and add them to the map
+      // Clear services before loading new ones
+      setState(() {
+        _services.clear();
+        _markers.clear();
+      });
+
       for (var doc in servicesSnapshot.docs) {
         var serviceLocation = doc['location'];
 
+        // Validate the service location before adding markers
+        if (serviceLocation == null) {
+          print('Service ${doc.id} is missing location data.');
+          continue;
+        }
+
+        // Check the type and parse location accordingly
         if (serviceLocation is GeoPoint) {
           _addServiceMarker(serviceLocation.latitude, serviceLocation.longitude, doc);
         } else if (serviceLocation is String && serviceLocation.contains(',')) {
@@ -108,8 +158,14 @@ class _HomePageState extends State<HomePage> {
           print("Invalid or missing location data for service: ${doc.id}");
         }
       }
+
+      print("Services loaded: ${_services.length}"); // Log service count
     } catch (e) {
       print('Error loading services: $e');
+    } finally {
+      setState(() {
+        _loadingServices = false;
+      });
     }
   }
 
@@ -127,14 +183,10 @@ class _HomePageState extends State<HomePage> {
 
       if (distanceInKm <= searchRadiusKm) {
         setState(() {
-          String serviceType = data['serviceType'] ?? 'Unknown';
-          String availableDates = _formatAvailableDates(data['availableDates']);
-          String salaryRange = data['salaryRange'] ?? 'Unknown';
-
           _services.add({
-            'serviceType': serviceType,
-            'availableDates': availableDates,
-            'salaryRange': salaryRange,
+            'serviceType': data['serviceType'] ?? 'Unknown',
+            'availableDates': _formatAvailableDates(data['availableDates']),
+            'salaryRange': data['salaryRange'] ?? 'Unknown',
             'distance': distanceInKm,
             'docId': doc.id,
             'providerId': data['providerId'],
@@ -145,7 +197,7 @@ class _HomePageState extends State<HomePage> {
               markerId: MarkerId(doc.id),
               position: LatLng(latitude, longitude),
               infoWindow: InfoWindow(
-                title: serviceType,
+                title: data['serviceType'] ?? 'Unknown',
                 snippet: 'Distância: ${distanceInKm.toStringAsFixed(2)} km',
               ),
             ),
@@ -165,24 +217,22 @@ class _HomePageState extends State<HomePage> {
   Future<void> _checkPendingRatings() async {
     final userId = FirebaseAuth.instance.currentUser!.uid;
 
-    // Query for finalized services that haven't been rated yet
     QuerySnapshot completedServices = await FirebaseFirestore.instance
         .collection('service_requests')
-        .where('status', isEqualTo: 'completed') // Only finalized services
+        .where('status', isEqualTo: 'completed')
         .where('contratanteId', isEqualTo: userId)
+        .limit(5)  // Limit to avoid heavy queries
         .get();
 
     for (var service in completedServices.docs) {
       String serviceId = service.id;
       String providerId = service['providerId'];
 
-      // Check if a rating for this service already exists
       QuerySnapshot ratingSnapshot = await FirebaseFirestore.instance
           .collection('ratings')
           .where('serviceId', isEqualTo: serviceId)
           .get();
 
-      // If no rating exists, show the rating dialog
       if (ratingSnapshot.docs.isEmpty) {
         _showRatingDialog(serviceId, providerId);
       }
@@ -190,7 +240,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _showRatingDialog(String serviceId, String providerId) {
-    // Navigate to the rating page
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -244,6 +293,17 @@ class _HomePageState extends State<HomePage> {
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(context, MaterialPageRoute(builder: (context) => ProfilePage()));
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.chat),
+              title: Text('Minhas Conversas'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => ChatListPage()),
+                );
               },
             ),
           ],
@@ -311,7 +371,9 @@ class _HomePageState extends State<HomePage> {
             SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: GridView.builder(
+              child: _services.isEmpty
+                  ? Center(child: Text('Nenhum serviço encontrado'))
+                  : GridView.builder(
                 shrinkWrap: true,
                 physics: NeverScrollableScrollPhysics(),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
