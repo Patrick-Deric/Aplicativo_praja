@@ -15,56 +15,72 @@ class _ChatListPageState extends State<ChatListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Chats'),
+        title: Text('Minhas Conversas'),
         backgroundColor: Colors.yellow[700],
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('chat_rooms')
-            .where('users', arrayContains: currentUser!.uid)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return Center(child: CircularProgressIndicator());
-          }
+        body: StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .doc(currentUser!.uid)
+              .collection('chat_list')
+              .orderBy('timestamp', descending: true) // Order by latest message
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return Center(child: CircularProgressIndicator());
+            }
 
-          var chatRooms = snapshot.data!.docs;
+            var chatList = snapshot.data!.docs;
 
-          if (chatRooms.isEmpty) {
-            return Center(
-              child: Text('Nenhum chat disponível'),
+            if (chatList.isEmpty) {
+              return Center(child: Text('Nenhuma conversa encontrada.'));
+            }
+
+            return ListView.builder(
+              itemCount: chatList.length,
+              itemBuilder: (context, index) {
+                var chatData = chatList[index];
+                var otherUserId = chatData['providerId'] ?? chatData['contratanteId'];
+                var lastMessage = chatData['lastMessage'] ?? '';
+
+                // Fetch the other user's information to display their name
+                return FutureBuilder<DocumentSnapshot>(
+                  future: FirebaseFirestore.instance.collection('users').doc(otherUserId).get(),
+                  builder: (context, userSnapshot) {
+                    if (!userSnapshot.hasData) {
+                      return ListTile(
+                        title: Text('Carregando...'),
+                      );
+                    }
+
+                    var otherUser = userSnapshot.data;
+                    var otherUserName = otherUser!['fullName'] ?? 'Usuário';
+
+                    return ListTile(
+                      title: Text(otherUserName),
+                      subtitle: Text(lastMessage),
+                      onTap: () {
+                        // Navigate to the chat room page
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ChatRoomPage(
+                              chatRoomId: chatData['chatRoomId'],
+                              providerId: otherUserId,
+                              serviceId: chatData['chatRoomId'],  // If you need to pass the service ID
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
             );
-          }
-
-          return ListView.builder(
-            itemCount: chatRooms.length,
-            itemBuilder: (context, index) {
-              var chatRoom = chatRooms[index];
-              String chatRoomId = chatRoom.id; // Get the chat room ID
-              List<dynamic> users = chatRoom['users'];
-
-              String otherUserId = users.firstWhere((userId) => userId != currentUser!.uid);
-              return ListTile(
-                title: Text('Chat com $otherUserId'), // Replace with fetching actual user details if needed
-                onTap: () {
-                  // Navigate to ChatRoomPage with the required chatRoomId
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ChatRoomPage(
-                        serviceId: chatRoom['serviceId'],
-                        providerId: otherUserId,
-                        chatRoomId: chatRoomId, // Pass the chatRoomId correctly
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
-          );
-        },
-      ),
+          },
+        )
     );
   }
 }
+
 

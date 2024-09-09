@@ -74,6 +74,37 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     // Generate chatRoomId by combining contratanteId and providerId
     String chatRoomId = contratanteId + "_" + providerId;
 
+    // Check if the chat room already exists
+    DocumentSnapshot chatRoomSnapshot = await FirebaseFirestore.instance
+        .collection('chat_rooms')
+        .doc(chatRoomId)
+        .get();
+
+    if (!chatRoomSnapshot.exists) {
+      // If the chat room doesn't exist, create it
+      await FirebaseFirestore.instance.collection('chat_rooms').doc(chatRoomId).set({
+        'contratanteId': contratanteId,
+        'providerId': providerId,
+        'createdAt': Timestamp.now(),
+        'users': [contratanteId, providerId],  // Ensure both users can access the chat room
+      });
+
+      // Add the chat room to the chat_lists collection for both contratante and provider
+      await FirebaseFirestore.instance.collection('chat_lists').doc(contratanteId).collection('chats').doc(chatRoomId).set({
+        'chatRoomId': chatRoomId,
+        'providerId': providerId,
+        'serviceId': widget.docId,
+        'lastMessageAt': Timestamp.now(),
+      });
+
+      await FirebaseFirestore.instance.collection('chat_lists').doc(providerId).collection('chats').doc(chatRoomId).set({
+        'chatRoomId': chatRoomId,
+        'contratanteId': contratanteId,
+        'serviceId': widget.docId,
+        'lastMessageAt': Timestamp.now(),
+      });
+    }
+
     // Navigate to the chat room page
     Navigator.push(
       context,
@@ -86,6 +117,7 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
       ),
     );
   }
+
 
   // Format the available dates
   String _formatAvailableDates(List<dynamic>? availableDates) {

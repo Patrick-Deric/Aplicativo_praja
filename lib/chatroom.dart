@@ -30,19 +30,44 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
 
   // Create or join a chat room
   Future<void> _createOrJoinChatRoom() async {
-    // Use the passed chatRoomId from the widget
     final roomSnapshot = await FirebaseFirestore.instance
         .collection('chat_rooms')
         .doc(widget.chatRoomId)
         .get();
 
     if (!roomSnapshot.exists) {
-      // If chat room doesn't exist, create it
+      // Create the chat room if it doesn't exist
       await FirebaseFirestore.instance.collection('chat_rooms').doc(widget.chatRoomId).set({
-        'users': [currentUser!.uid, widget.providerId],
         'createdAt': Timestamp.now(),
+        'users': [currentUser!.uid, widget.providerId],
       });
     }
+
+    // Add the chat room to the contratante's chat list
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser!.uid)
+        .collection('chat_list')
+        .doc(widget.chatRoomId)
+        .set({
+      'chatRoomId': widget.chatRoomId,
+      'providerId': widget.providerId,
+      'lastMessage': '', // Initially empty, can be updated later
+      'timestamp': Timestamp.now(),
+    });
+
+    // Add the chat room to the provider's chat list
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.providerId)
+        .collection('chat_list')
+        .doc(widget.chatRoomId)
+        .set({
+      'chatRoomId': widget.chatRoomId,
+      'contratanteId': currentUser!.uid,
+      'lastMessage': '', // Initially empty
+      'timestamp': Timestamp.now(),
+    });
   }
 
   // Send message function
@@ -57,6 +82,27 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       'message': message,
       'senderId': currentUser!.uid,
       'receiverId': widget.providerId,
+      'timestamp': Timestamp.now(),
+    });
+
+    // Update the chat list for both users with the last message
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser!.uid)
+        .collection('chat_list')
+        .doc(widget.chatRoomId)
+        .update({
+      'lastMessage': message,
+      'timestamp': Timestamp.now(),
+    });
+
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.providerId)
+        .collection('chat_list')
+        .doc(widget.chatRoomId)
+        .update({
+      'lastMessage': message,
       'timestamp': Timestamp.now(),
     });
 
@@ -87,6 +133,10 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                 }
 
                 var messages = snapshot.data!.docs;
+                if (messages.isEmpty) {
+                  return Center(child: Text('No messages yet.'));
+                }
+
                 return ListView.builder(
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
@@ -146,3 +196,4 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     );
   }
 }
+
