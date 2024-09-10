@@ -24,7 +24,7 @@ class _PostServiceState extends State<PostService> {
 
   List<String> _serviceTypes = [
     'Pintor', 'Eletricista', 'Encanador', 'Faxineira', 'Cuidadora', 'Pedreiro',
-    'Marceneiro', 'Motorista', 'Jardineiro', 'Manicure', 'Costureira', 'Técnico de Informática'
+    'Marceneiro', 'Motorista', 'Jardineiro', 'Manicure', 'Costureira', 'Técnico Informática'
   ];
 
   List<String> _salaryRanges = [

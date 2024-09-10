@@ -67,6 +67,7 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
   }
 
   // Function to start the chat
+
   Future<void> _startChat() async {
     final String contratanteId = FirebaseAuth.instance.currentUser!.uid;
     final String providerId = _serviceData!['providerId'];
@@ -74,49 +75,62 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     // Generate chatRoomId by combining contratanteId and providerId
     String chatRoomId = contratanteId + "_" + providerId;
 
-    // Check if the chat room already exists
-    DocumentSnapshot chatRoomSnapshot = await FirebaseFirestore.instance
-        .collection('chat_rooms')
-        .doc(chatRoomId)
-        .get();
+    try {
+      DocumentSnapshot chatRoomSnapshot = await FirebaseFirestore.instance
+          .collection('chat_rooms')
+          .doc(chatRoomId)
+          .get();
 
-    if (!chatRoomSnapshot.exists) {
-      // If the chat room doesn't exist, create it
-      await FirebaseFirestore.instance.collection('chat_rooms').doc(chatRoomId).set({
-        'contratanteId': contratanteId,
-        'providerId': providerId,
-        'createdAt': Timestamp.now(),
-        'users': [contratanteId, providerId],  // Ensure both users can access the chat room
-      });
+      if (!chatRoomSnapshot.exists) {
+        // Create the chat room
+        await FirebaseFirestore.instance.collection('chat_rooms').doc(chatRoomId).set({
+          'contratanteId': contratanteId,
+          'providerId': providerId,
+          'createdAt': Timestamp.now(),
+          'users': [contratanteId, providerId],  // Store both users
+        });
 
-      // Add the chat room to the chat_lists collection for both contratante and provider
-      await FirebaseFirestore.instance.collection('chat_lists').doc(contratanteId).collection('chats').doc(chatRoomId).set({
-        'chatRoomId': chatRoomId,
-        'providerId': providerId,
-        'serviceId': widget.docId,
-        'lastMessageAt': Timestamp.now(),
-      });
+        // Update chat lists for both participants
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(contratanteId)
+            .collection('chat_list')
+            .doc(chatRoomId)
+            .set({
+          'chatRoomId': chatRoomId,
+          'lastMessage': '',
+          'timestamp': Timestamp.now(),
+        });
 
-      await FirebaseFirestore.instance.collection('chat_lists').doc(providerId).collection('chats').doc(chatRoomId).set({
-        'chatRoomId': chatRoomId,
-        'contratanteId': contratanteId,
-        'serviceId': widget.docId,
-        'lastMessageAt': Timestamp.now(),
-      });
-    }
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(providerId)
+            .collection('chat_list')
+            .doc(chatRoomId)
+            .set({
+          'chatRoomId': chatRoomId,
+          'lastMessage': '',
+          'timestamp': Timestamp.now(),
+        });
+      }
 
-    // Navigate to the chat room page
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ChatRoomPage(
-          chatRoomId: chatRoomId, // Pass chatRoomId
-          providerId: providerId, // Pass providerId
-          serviceId: widget.docId, // Pass serviceId
+      // Navigate to the chat room
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ChatRoomPage(
+            chatRoomId: chatRoomId,
+            providerId: providerId,
+            serviceId: widget.docId,
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      print('Error starting chat: $e');
+    }
   }
+
+
 
 
   // Format the available dates
@@ -195,4 +209,3 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     );
   }
 }
-

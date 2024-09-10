@@ -18,69 +18,74 @@ class _ChatListPageState extends State<ChatListPage> {
         title: Text('Minhas Conversas'),
         backgroundColor: Colors.yellow[700],
       ),
-        body: StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('users')
-              .doc(currentUser!.uid)
-              .collection('chat_list')
-              .orderBy('timestamp', descending: true) // Order by latest message
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) {
-              return Center(child: CircularProgressIndicator());
-            }
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser!.uid)
+            .collection('chat_list')
+            .orderBy('timestamp', descending: true) // Order by latest message
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return Center(child: CircularProgressIndicator());
+          }
 
-            var chatList = snapshot.data!.docs;
+          var chatList = snapshot.data!.docs;
 
-            if (chatList.isEmpty) {
-              return Center(child: Text('Nenhuma conversa encontrada.'));
-            }
+          if (chatList.isEmpty) {
+            return Center(child: Text('Nenhuma conversa encontrada.'));
+          }
 
-            return ListView.builder(
-              itemCount: chatList.length,
-              itemBuilder: (context, index) {
-                var chatData = chatList[index];
-                var otherUserId = chatData['providerId'] ?? chatData['contratanteId'];
-                var lastMessage = chatData['lastMessage'] ?? '';
+          return ListView.builder(
+            itemCount: chatList.length,
+            itemBuilder: (context, index) {
+              var chatData = chatList[index];
+              var chatRoomData = chatData.data() as Map<String, dynamic>; // Cast the data to a Map
 
-                // Fetch the other user's information to display their name
-                return FutureBuilder<DocumentSnapshot>(
-                  future: FirebaseFirestore.instance.collection('users').doc(otherUserId).get(),
-                  builder: (context, userSnapshot) {
-                    if (!userSnapshot.hasData) {
-                      return ListTile(
-                        title: Text('Carregando...'),
-                      );
-                    }
+              var chatRoomId = chatRoomData['chatRoomId'];
+              var lastMessage = chatRoomData['lastMessage'] ?? '';
 
-                    var otherUser = userSnapshot.data;
-                    var otherUserName = otherUser!['fullName'] ?? 'Usuário';
+              // Now fetch the other user (provider or contratante) for display
+              var otherUserId = chatRoomData.containsKey('providerId')
+                  ? chatRoomData['providerId']
+                  : chatRoomData['contratanteId'];
 
+              return FutureBuilder<DocumentSnapshot>(
+                future: FirebaseFirestore.instance.collection('users').doc(otherUserId).get(),
+                builder: (context, userSnapshot) {
+                  if (!userSnapshot.hasData) {
                     return ListTile(
-                      title: Text(otherUserName),
-                      subtitle: Text(lastMessage),
-                      onTap: () {
-                        // Navigate to the chat room page
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ChatRoomPage(
-                              chatRoomId: chatData['chatRoomId'],
-                              providerId: otherUserId,
-                              serviceId: chatData['chatRoomId'],  // If you need to pass the service ID
-                            ),
-                          ),
-                        );
-                      },
+                      title: Text('Carregando...'),
                     );
-                  },
-                );
-              },
-            );
-          },
-        )
+                  }
+
+                  var otherUser = userSnapshot.data;
+                  var otherUserName = otherUser!['fullName'] ?? 'Usuário';
+
+                  return ListTile(
+                    title: Text(otherUserName),
+                    subtitle: Text(lastMessage),
+                    onTap: () {
+                      // Navigate to the chat room page
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ChatRoomPage(
+                            chatRoomId: chatRoomId,
+                            providerId: otherUserId,
+                            serviceId: chatRoomId,  // If you need to pass the service ID
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }
-
 
