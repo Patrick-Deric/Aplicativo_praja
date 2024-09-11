@@ -17,7 +17,6 @@ class ServiceDetailsPage extends StatefulWidget {
 class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
   Map<String, dynamic>? _serviceData;
   bool _isLoading = true;
-  String _providerName = ''; // Store the provider name
 
   @override
   void initState() {
@@ -36,31 +35,11 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
       if (serviceSnapshot.exists) {
         setState(() {
           _serviceData = serviceSnapshot.data() as Map<String, dynamic>;
-          _fetchProviderDetails(); // Fetch provider name once service details are loaded
           _isLoading = false;
         });
       }
     } catch (e) {
       print('Error fetching service details: $e');
-    }
-  }
-
-  // Fetch provider details (e.g., fullName)
-  Future<void> _fetchProviderDetails() async {
-    try {
-      String providerId = _serviceData!['providerId'];
-      DocumentSnapshot providerSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(providerId)
-          .get();
-
-      if (providerSnapshot.exists) {
-        setState(() {
-          _providerName = providerSnapshot['fullName'] ?? 'Nome não disponível';
-        });
-      }
-    } catch (e) {
-      print('Error fetching provider details: $e');
     }
   }
 
@@ -127,6 +106,37 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     }
   }
 
+  // Function to request service without sending WhatsApp
+  Future<void> _requestService() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Usuário não autenticado!')),
+      );
+      return;
+    }
+
+    try {
+      // Create a new service request in the Firestore database
+      await FirebaseFirestore.instance.collection('service_requests').add({
+        'serviceId': widget.docId,
+        'providerId': _serviceData!['providerId'],
+        'contratanteId': currentUser.uid,
+        'status': 'pending', // Initially pending status
+        'timestamp': Timestamp.now(),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Serviço requisitado com sucesso!')),
+      );
+    } catch (e) {
+      print('Error requesting service: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao requisitar o serviço.')),
+      );
+    }
+  }
+
   // Format the available dates
   String _formatAvailableDates(List<dynamic>? availableDates) {
     if (availableDates == null || availableDates.isEmpty) return 'Não disponível';
@@ -166,11 +176,6 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
               ),
               SizedBox(height: 10),
               Text(
-                'Prestador: $_providerName', // Display provider name
-                style: TextStyle(fontSize: 18, color: Colors.grey[700]),
-              ),
-              SizedBox(height: 10),
-              Text(
                 'Pretensão Salarial: ${_serviceData!['salaryRange'] ?? 'Não disponível'}',
                 style: TextStyle(fontSize: 18, color: Colors.grey[700]),
               ),
@@ -185,6 +190,8 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
                 style: TextStyle(fontSize: 18, color: Colors.grey[700]),
               ),
               SizedBox(height: 20),
+
+              // Button to start chat
               ElevatedButton(
                 onPressed: _startChat, // Start chat when pressed
                 style: ElevatedButton.styleFrom(
@@ -196,6 +203,21 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
                   style: TextStyle(fontSize: 16),
                 ),
               ),
+
+              SizedBox(height: 10), // Space between buttons
+
+              // New button to request service
+              ElevatedButton(
+                onPressed: _requestService, // Request service when pressed
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(vertical: 16.0),
+                  backgroundColor: Colors.green[700],
+                ),
+                child: Text(
+                  'Requisitar Serviço',
+                  style: TextStyle(fontSize: 16),
+                ),
+              ),
             ],
           ),
         ),
@@ -203,4 +225,3 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     );
   }
 }
-

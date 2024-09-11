@@ -73,38 +73,6 @@ class _ServiceRequestsPageState extends State<ServiceRequestsPage> {
     }
   }
 
-  // Function to request a service and move it to service_requests collection
-  Future<void> _requestService(String serviceId, String providerId) async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Usuário não autenticado!')),
-      );
-      return;
-    }
-
-    try {
-      // Create a new document in the service_requests collection
-      await FirebaseFirestore.instance.collection('service_requests').add({
-        'serviceId': serviceId,
-        'providerId': providerId,
-        'contratanteId': currentUser.uid,
-        'status': 'pending', // Service is pending until accepted by the provider
-        'timestamp': Timestamp.now(),
-        'contratanteWhatsapp': currentUser.phoneNumber ?? 'N/A',
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Serviço solicitado com sucesso!')),
-      );
-    } catch (e) {
-      print('Error requesting service: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao solicitar o serviço.')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -160,7 +128,6 @@ class _ServiceRequestsPageState extends State<ServiceRequestsPage> {
 
   // Function to build a request card widget
   Widget _buildRequestCard(BuildContext context, QueryDocumentSnapshot request) {
-    String contratanteWhatsapp = request['contratanteWhatsapp'];
     String requestId = request.id;
     Timestamp timestamp = request['timestamp'];
     DateTime requestTime = timestamp.toDate();
@@ -177,8 +144,6 @@ class _ServiceRequestsPageState extends State<ServiceRequestsPage> {
               'Solicitação de Serviço',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 10),
-            Text('WhatsApp: $contratanteWhatsapp'),
             SizedBox(height: 10),
             Text('Solicitado em: $formattedTime'),
             SizedBox(height: 20),

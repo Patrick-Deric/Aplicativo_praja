@@ -57,7 +57,6 @@ class _OngoingServicesPageState extends State<OngoingServicesPage> {
 
   // Function to build a card for each ongoing service
   Widget _buildOngoingServiceCard(BuildContext context, QueryDocumentSnapshot service) {
-    String contratanteWhatsapp = service['contratanteWhatsapp'];
     String requestId = service.id;
     Timestamp timestamp = service['timestamp'];
     DateTime requestTime = timestamp.toDate();
@@ -74,8 +73,6 @@ class _OngoingServicesPageState extends State<OngoingServicesPage> {
               'Serviço em Andamento',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 10),
-            Text('WhatsApp: $contratanteWhatsapp'),
             SizedBox(height: 10),
             Text('Solicitado em: $formattedTime'),
             SizedBox(height: 20),
@@ -128,5 +125,7 @@ class _OngoingServicesPageState extends State<OngoingServicesPage> {
     }
   }
 }
+
+
 
 
