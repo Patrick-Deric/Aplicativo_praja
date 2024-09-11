@@ -23,7 +23,6 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
   void initState() {
     super.initState();
     _fetchServiceDetails();
-    _fetchProviderDetails(); // Fetch provider name
   }
 
   // Fetch the service details from Firestore
@@ -37,6 +36,7 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
       if (serviceSnapshot.exists) {
         setState(() {
           _serviceData = serviceSnapshot.data() as Map<String, dynamic>;
+          _fetchProviderDetails(); // Fetch provider name once service details are loaded
           _isLoading = false;
         });
       }
@@ -48,26 +48,23 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
   // Fetch provider details (e.g., fullName)
   Future<void> _fetchProviderDetails() async {
     try {
-      if (_serviceData != null) {
-        String providerId = _serviceData!['providerId'];
-        DocumentSnapshot providerSnapshot = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(providerId)
-            .get();
+      String providerId = _serviceData!['providerId'];
+      DocumentSnapshot providerSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(providerId)
+          .get();
 
-        if (providerSnapshot.exists) {
-          setState(() {
-            _providerName = providerSnapshot['fullName'] ?? 'Nome não disponível';
-          });
-        }
+      if (providerSnapshot.exists) {
+        setState(() {
+          _providerName = providerSnapshot['fullName'] ?? 'Nome não disponível';
+        });
       }
     } catch (e) {
       print('Error fetching provider details: $e');
     }
   }
 
-  // Function to start the chat
-
+  // Function to start the chat and create the chat room
   Future<void> _startChat() async {
     final String contratanteId = FirebaseAuth.instance.currentUser!.uid;
     final String providerId = _serviceData!['providerId'];
@@ -129,9 +126,6 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
       print('Error starting chat: $e');
     }
   }
-
-
-
 
   // Format the available dates
   String _formatAvailableDates(List<dynamic>? availableDates) {
@@ -209,3 +203,4 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     );
   }
 }
+

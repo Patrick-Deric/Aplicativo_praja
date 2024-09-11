@@ -21,11 +21,41 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   String message = '';
   TextEditingController _messageController = TextEditingController();
   User? currentUser = FirebaseAuth.instance.currentUser;
+  bool _isProvider = false;
+  bool _hasAcceptedService = false; // To track if the service was accepted
 
   @override
   void initState() {
     super.initState();
+    _checkIfProvider();
+    _checkIfServiceAccepted(); // Check if service has already been accepted
     _createOrJoinChatRoom();
+  }
+
+  // Check if the current user is the provider
+  Future<void> _checkIfProvider() async {
+    setState(() {
+      _isProvider = currentUser!.uid == widget.providerId;
+    });
+  }
+
+  // Check if the service has already been accepted
+  Future<void> _checkIfServiceAccepted() async {
+    final requestSnapshot = await FirebaseFirestore.instance
+        .collection('service_requests')
+        .where('serviceId', isEqualTo: widget.serviceId)
+        .where('providerId', isEqualTo: widget.providerId)
+        .where('contratanteId', isEqualTo: currentUser!.uid)
+        .get();
+
+    if (requestSnapshot.docs.isNotEmpty) {
+      final requestStatus = requestSnapshot.docs.first['status'];
+      if (requestStatus == 'ongoing' || requestStatus == 'completed') {
+        setState(() {
+          _hasAcceptedService = true;
+        });
+      }
+    }
   }
 
   // Create or join a chat room
@@ -74,6 +104,42 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     });
   }
 
+  // Accept the service request
+  Future<void> _acceptServiceRequest() async {
+    try {
+      final requestSnapshot = await FirebaseFirestore.instance
+          .collection('service_requests')
+          .where('serviceId', isEqualTo: widget.serviceId)
+          .where('providerId', isEqualTo: widget.providerId)
+          .where('contratanteId', isEqualTo: currentUser!.uid)
+          .get();
+
+      if (requestSnapshot.docs.isNotEmpty) {
+        final requestId = requestSnapshot.docs.first.id;
+
+        // Update the status to 'ongoing' in service_requests
+        await FirebaseFirestore.instance.collection('service_requests').doc(requestId).update({
+          'status': 'ongoing',
+        });
+
+        // Update the service status in the services collection
+        await FirebaseFirestore.instance.collection('services').doc(widget.serviceId).update({
+          'status': 'ongoing',
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Serviço aceito e agora está em andamento!')),
+        );
+
+        setState(() {
+          _hasAcceptedService = true; // Mark the service as accepted
+        });
+      }
+    } catch (e) {
+      print('Erro ao aceitar o serviço: $e');
+    }
+  }
+
   // Send message function
   Future<void> _sendMessage() async {
     if (message.isEmpty) return;
@@ -113,7 +179,6 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     _messageController.clear(); // Clear the text field after sending
   }
 
-  // Here is the missing build method that defines the UI
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -139,7 +204,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
 
                 var messages = snapshot.data!.docs;
                 if (messages.isEmpty) {
-                  return Center(child: Text('No messages yet.'));
+                  return Center(child: Text('Nenhuma mensagem ainda.'));
                 }
 
                 return ListView.builder(
@@ -196,6 +261,19 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
               ],
             ),
           ),
+
+          // Button to accept service (only visible for provider if not already accepted)
+          if (_isProvider && !_hasAcceptedService)
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: ElevatedButton(
+                onPressed: _acceptServiceRequest,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                ),
+                child: Text('Aceitar Serviço'),
+              ),
+            ),
         ],
       ),
     );
