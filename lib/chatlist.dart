@@ -39,19 +39,20 @@ class _ChatListPageState extends State<ChatListPage> {
           return ListView.builder(
             itemCount: chatList.length,
             itemBuilder: (context, index) {
-              var chatData = chatList[index];
-              var chatRoomData = chatData.data() as Map<String, dynamic>; // Cast the data to a Map
+              var chatData = chatList[index].data() as Map<String, dynamic>;
+              var chatRoomId = chatData['chatRoomId'];
+              var lastMessage = chatData['lastMessage'] ?? '';
 
-              var chatRoomId = chatRoomData['chatRoomId'];
-              var lastMessage = chatRoomData['lastMessage'] ?? '';
-
-              // Now fetch the other user (provider or contratante) for display
-              var otherUserId = chatRoomData.containsKey('providerId')
-                  ? chatRoomData['providerId']
-                  : chatRoomData['contratanteId'];
+              // Fetch the provider or contratante for display
+              var otherUserId = chatData.containsKey('providerId')
+                  ? chatData['providerId']
+                  : chatData['contratanteId'];
 
               return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance.collection('users').doc(otherUserId).get(),
+                future: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(otherUserId)
+                    .get(),
                 builder: (context, userSnapshot) {
                   if (!userSnapshot.hasData) {
                     return ListTile(
@@ -59,8 +60,8 @@ class _ChatListPageState extends State<ChatListPage> {
                     );
                   }
 
-                  var otherUser = userSnapshot.data;
-                  var otherUserName = otherUser!['fullName'] ?? 'Usuário';
+                  var otherUser = userSnapshot.data!.data() as Map<String, dynamic>;
+                  var otherUserName = otherUser['fullName'] ?? 'Usuário';
 
                   return ListTile(
                     title: Text(otherUserName),
@@ -73,7 +74,7 @@ class _ChatListPageState extends State<ChatListPage> {
                           builder: (context) => ChatRoomPage(
                             chatRoomId: chatRoomId,
                             providerId: otherUserId,
-                            serviceId: chatRoomId,  // If you need to pass the service ID
+                            serviceId: chatRoomId, // If you need to pass the service ID
                           ),
                         ),
                       );
@@ -88,4 +89,3 @@ class _ChatListPageState extends State<ChatListPage> {
     );
   }
 }
-

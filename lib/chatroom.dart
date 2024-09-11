@@ -54,6 +54,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         .set({
       'chatRoomId': widget.chatRoomId,
       'providerId': widget.providerId,
+      'contratanteId': currentUser!.uid,
       'lastMessage': '', // Initially empty, can be updated later
       'timestamp': Timestamp.now(),
     });
@@ -67,6 +68,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         .set({
       'chatRoomId': widget.chatRoomId,
       'contratanteId': currentUser!.uid,
+      'providerId': widget.providerId,
       'lastMessage': '', // Initially empty
       'timestamp': Timestamp.now(),
     });
@@ -76,51 +78,42 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   Future<void> _sendMessage() async {
     if (message.isEmpty) return;
 
-    final String chatRoomId = widget.chatRoomId;
-    final String senderId = FirebaseAuth.instance.currentUser!.uid;
-    final String receiverId = widget.providerId;
+    await FirebaseFirestore.instance
+        .collection('chat_rooms')
+        .doc(widget.chatRoomId) // Use the chatRoomId from the widget
+        .collection('messages')
+        .add({
+      'message': message,
+      'senderId': currentUser!.uid,
+      'receiverId': widget.providerId,
+      'timestamp': Timestamp.now(),
+    });
 
-    try {
-      // Send the message
-      await FirebaseFirestore.instance
-          .collection('chat_rooms')
-          .doc(chatRoomId)
-          .collection('messages')
-          .add({
-        'message': message,
-        'senderId': senderId,
-        'receiverId': receiverId,
-        'timestamp': Timestamp.now(),
-      });
+    // Update the chat list for both users with the last message
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser!.uid)
+        .collection('chat_list')
+        .doc(widget.chatRoomId)
+        .update({
+      'lastMessage': message,
+      'timestamp': Timestamp.now(),
+    });
 
-      // Update the chat list for both users
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(senderId)
-          .collection('chat_list')
-          .doc(chatRoomId)
-          .update({
-        'lastMessage': message,
-        'timestamp': Timestamp.now(),
-      });
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.providerId)
+        .collection('chat_list')
+        .doc(widget.chatRoomId)
+        .update({
+      'lastMessage': message,
+      'timestamp': Timestamp.now(),
+    });
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(receiverId)
-          .collection('chat_list')
-          .doc(chatRoomId)
-          .update({
-        'lastMessage': message,
-        'timestamp': Timestamp.now(),
-      });
-
-      _messageController.clear(); // Clear the input after sending
-    } catch (e) {
-      print('Error sending message: $e');
-    }
+    _messageController.clear(); // Clear the text field after sending
   }
 
-
+  // Here is the missing build method that defines the UI
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -208,4 +201,3 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     );
   }
 }
-
