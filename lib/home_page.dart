@@ -271,44 +271,7 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: <Widget>[
-            DrawerHeader(
-              decoration: BoxDecoration(
-                color: Colors.yellow[700],
-              ),
-              child: Text(
-                'Menu',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                ),
-              ),
-            ),
-            ListTile(
-              leading: Icon(Icons.person),
-              title: Text('Perfil'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (context) => ProfilePage()));
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.chat),
-              title: Text('Minhas Conversas'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => ChatListPage()),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
+
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -405,12 +368,16 @@ class _HomePageState extends State<HomePage> {
         items: [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.work), label: 'Serviços'),
+          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
         ],
         onTap: (index) {
           if (index == 1) {
             Navigator.push(context, MaterialPageRoute(builder: (context) => OngoingServicesContratantePage()));
-          } else if (index == 2) {
+          }
+          if (index == 2) {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => ChatListPage()));
+          } else if (index == 3) {
             Navigator.push(context, MaterialPageRoute(builder: (context) => ProfileContratantePage()));
           }
         },
@@ -470,7 +437,7 @@ class _HomePageState extends State<HomePage> {
               ),
               SizedBox(height: 5),
               Text(
-                'Pretensão: $salaryRange',
+                'Pretensão: $salaryRange por hora',
                 style: TextStyle(fontSize: 14, color: Colors.grey[600]),
               ),
               SizedBox(height: 10),

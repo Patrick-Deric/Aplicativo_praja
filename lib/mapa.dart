@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'service_details_page.dart'; // Import your service details page
 
 class ServiceMapPage extends StatefulWidget {
   final String serviceName;
@@ -49,12 +50,10 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
     }
 
     _currentPosition = await Geolocator.getCurrentPosition();
-    setState(() {});
+    setState(() {}); // Trigger a rebuild once we have the position
   }
 
   Future<Map<String, dynamic>?> _getLatLngFromCEP(String cep) async {
-    // Example using 'viacep' API for Brazilian CEP, but no latitude/longitude is returned.
-    // You should replace this with a geocoding API such as Google Maps Geocoding API.
     final String url = 'https://maps.googleapis.com/maps/api/geocode/json?address=$cep&key=YOUR_GOOGLE_API_KEY';
 
     try {
@@ -78,7 +77,7 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
   void _loadCollaborators() async {
     final QuerySnapshot snapshot = await FirebaseFirestore.instance
         .collection('users')
-        .where('role', isEqualTo: 'prestador') // Ensure fetching only service providers
+        .where('role', isEqualTo: 'prestador') // Fetch only service providers
         .get();
 
     for (var doc in snapshot.docs) {
@@ -108,6 +107,18 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
                 infoWindow: InfoWindow(
                   title: doc['fullName'],
                   snippet: '${doc['jobRole']} - ${distanceInKm.toStringAsFixed(2)} km',
+                  onTap: () {
+                    // Navigate to service details when the marker's info window is tapped
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ServiceDetailsPage(
+                          docId: doc.id, // Pass document ID to service details page
+                          distance: distanceInKm,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             );
@@ -135,6 +146,8 @@ class _ServiceMapPageState extends State<ServiceMapPage> {
           zoom: 12,
         ),
         markers: _markers,
+        myLocationEnabled: true,
+        myLocationButtonEnabled: true,
       ),
     );
   }
