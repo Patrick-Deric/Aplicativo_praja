@@ -41,17 +41,26 @@ class _ProfilePrestadorState extends State<ProfilePrestador> {
           .doc(_user!.uid)
           .get();
 
-      setState(() {
-        _fullName = doc['fullName'];
-        _email = doc['email'];
-        _cpf = doc['cpf'];
-        _cep = doc['cep'];
-        _rua = doc['rua'];
-        _numero = doc['numero'];
-        _jobRole = doc['jobRole'];
-        _rating = doc['rating'] ?? 0.0;
-        _imageUrl = doc['profilePictureUrl'];
-      });
+      // Safely cast doc.data() to Map<String, dynamic> and check for null
+      final userData = doc.data() as Map<String, dynamic>?;
+
+      if (userData != null) {
+        setState(() {
+          _fullName = userData['fullName'] ?? 'Nome não disponível';
+          _email = userData['email'] ?? 'Email não disponível';
+          _cpf = userData['cpf'] ?? 'CPF não disponível';
+          _cep = userData['cep'] ?? 'CEP não disponível';
+          _rua = userData['rua'] ?? 'Rua não disponível';
+          _numero = userData['numero'] ?? 'Número não disponível';
+          _jobRole = userData['jobRole'] ?? 'Profissão não disponível';
+          _rating = userData['rating'] ?? 0.0;
+
+          // Check if 'profilePictureUrl' exists in the userData
+          _imageUrl = userData.containsKey('profilePictureUrl')
+              ? userData['profilePictureUrl']
+              : null;
+        });
+      }
     }
   }
 

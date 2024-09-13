@@ -41,6 +41,8 @@ flutter:
     - assets/avatar.jpg
     - assets/workerlogo.png
     - assets/agora.png
+    - assets/profileanon.jpeg
+    - assets/anon.png
 
 flutter_launcher_icons:
   android: "launcher_icon"

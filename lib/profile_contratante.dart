@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class ProfileContratantePage extends StatefulWidget {
   @override
@@ -8,85 +11,225 @@ class ProfileContratantePage extends StatefulWidget {
 }
 
 class _ProfileContratantePageState extends State<ProfileContratantePage> {
-  User? _user = FirebaseAuth.instance.currentUser;
-  Map<String, dynamic>? _userData;
-  bool _isLoading = true;
+  final _auth = FirebaseAuth.instance;
+  User? _user;
+  File? _image;
+  String? _imageUrl;
+
+  // TextEditingControllers for each field
+  final TextEditingController _fullNameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _cepController = TextEditingController();
+  final TextEditingController _ruaController = TextEditingController();
+  final TextEditingController _numeroController = TextEditingController();
+
+  bool _isEditing = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchUserProfile();
+    _user = _auth.currentUser;
+    _loadUserProfile();
   }
 
-  Future<void> _fetchUserProfile() async {
+  Future<void> _loadUserProfile() async {
     if (_user != null) {
-      try {
-        DocumentSnapshot userSnapshot = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(_user!.uid)
-            .get();
+      DocumentSnapshot doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_user!.uid)
+          .get();
 
+      // Safely cast doc.data() to Map<String, dynamic> and check for null
+      final userData = doc.data() as Map<String, dynamic>?;
+
+      if (userData != null) {
         setState(() {
-          _userData = userSnapshot.data() as Map<String, dynamic>?;
-          _isLoading = false;
+          _fullNameController.text = userData['fullName'] ?? 'Nome não disponível';
+          _emailController.text = userData['email'] ?? 'Email não disponível';
+          _cepController.text = userData['cep'] ?? 'CEP não disponível';
+          _ruaController.text = userData['rua'] ?? 'Rua não disponível';
+          _numeroController.text = userData['numero'] ?? 'Número não disponível';
+
+          // Check if 'profilePictureUrl' exists in the userData
+          _imageUrl = userData.containsKey('profilePictureUrl')
+              ? userData['profilePictureUrl']
+              : null;
         });
-      } catch (e) {
-        print('Error fetching user profile: $e');
       }
     }
   }
 
+  Future<void> _pickImage() async {
+    final ImagePicker _picker = ImagePicker();
+    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
+      setState(() {
+        _image = File(pickedFile.path);
+      });
+      await _uploadImage();
+    } else {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Nenhuma imagem selecionada')));
+    }
+  }
+
+  Future<void> _uploadImage() async {
+    if (_image != null && _user != null) {
+      try {
+        final storageRef = FirebaseStorage.instance
+            .ref()
+            .child('profile_pictures')
+            .child('${_user!.uid}.jpg');
+
+        await storageRef.putFile(_image!);
+
+        String imageUrl = await storageRef.getDownloadURL();
+
+        setState(() {
+          _imageUrl = imageUrl;
+        });
+
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(_user!.uid)
+            .update({'profilePictureUrl': imageUrl});
+
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Imagem enviada com sucesso!')));
+      } catch (e) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erro ao enviar a imagem')));
+      }
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    if (_user != null) {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_user!.uid)
+          .update({
+        'fullName': _fullNameController.text,
+        'cep': _cepController.text,
+        'rua': _ruaController.text,
+        'numero': _numeroController.text,
+      });
+      setState(() {
+        _isEditing = false;
+      });
+    }
+  }
+
+  Widget _buildProfileField({
+    required IconData icon,
+    required String label,
+    required TextEditingController controller,
+  }) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Icon(icon, color: Colors.yellow),
+            SizedBox(width: 10),
+            Expanded(
+              child: _isEditing
+                  ? TextFormField(
+                controller: controller,
+                decoration: InputDecoration(
+                  labelText: label,
+                  border: OutlineInputBorder(),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+              )
+                  : ListTile(
+                title: Text(label),
+                subtitle: Text(controller.text),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 20),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(
-        appBar: AppBar(title: Text('Perfil')),
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text('Perfil do Contratante'),
-        backgroundColor: Colors.yellow[700],
+        title: Text(
+          'Perfil do Contratante',
+          style: TextStyle(color: Colors.black),
+        ),
+        backgroundColor: Colors.yellow,
+        actions: [
+          IconButton(
+            icon: Icon(_isEditing ? Icons.save : Icons.edit),
+            onPressed: () {
+              if (_isEditing) {
+                _saveProfile();
+              } else {
+                setState(() {
+                  _isEditing = true;
+                });
+              }
+            },
+          ),
+        ],
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            CircleAvatar(
-              radius: 60,
-              backgroundImage: AssetImage('assets/avatar.jpg'), // Replace with actual profile picture
+            // Profile Picture
+            Stack(
+              children: [
+                CircleAvatar(
+                  radius: 60,
+                  backgroundImage: _imageUrl != null
+                      ? NetworkImage(_imageUrl!)
+                      : AssetImage('assets/avatar.jpg') as ImageProvider,
+                ),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: IconButton(
+                    icon: Icon(Icons.camera_alt, color: Colors.grey),
+                    onPressed: _pickImage,
+                  ),
+                ),
+              ],
             ),
             SizedBox(height: 20),
-            Text(
-              _userData?['name'] ?? 'Nome não disponível',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+
+            // Profile fields
+            _buildProfileField(
+              icon: Icons.person,
+              label: 'Nome Completo',
+              controller: _fullNameController,
             ),
-            SizedBox(height: 10),
-            Text(
-              'Email: ${_userData?['email'] ?? 'Email não disponível'}',
-              style: TextStyle(fontSize: 18, color: Colors.grey[700]),
+            _buildProfileField(
+              icon: Icons.email,
+              label: 'E-mail',
+              controller: _emailController,
             ),
-            SizedBox(height: 10),
-            Text(
-              'Telefone: ${_userData?['phone'] ?? 'Telefone não disponível'}',
-              style: TextStyle(fontSize: 18, color: Colors.grey[700]),
+            _buildProfileField(
+              icon: Icons.location_on,
+              label: 'CEP',
+              controller: _cepController,
             ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                // Implement edit profile functionality
-              },
-              style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(vertical: 16.0),
-                backgroundColor: Colors.yellow[700],
-              ),
-              child: Text(
-                'Editar Perfil',
-                style: TextStyle(fontSize: 16),
-              ),
+            _buildProfileField(
+              icon: Icons.home,
+              label: 'Rua',
+              controller: _ruaController,
+            ),
+            _buildProfileField(
+              icon: Icons.home,
+              label: 'Número',
+              controller: _numeroController,
             ),
           ],
         ),
@@ -94,3 +237,5 @@ class _ProfileContratantePageState extends State<ProfileContratantePage> {
     );
   }
 }
+
+

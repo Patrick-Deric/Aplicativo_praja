@@ -60,6 +60,8 @@ class MyApp extends StatelessWidget {
         // Define your other routes here
         switch (settings.name) {
           case '/':
+            return MaterialPageRoute(builder: (context) => LandingPage());
+          case '/login':
             return MaterialPageRoute(builder: (context) => LoginPage());
           case '/register':
             return MaterialPageRoute(builder: (context) => RegisterContratantePage());

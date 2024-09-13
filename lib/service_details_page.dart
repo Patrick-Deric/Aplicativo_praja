@@ -16,6 +16,8 @@ class ServiceDetailsPage extends StatefulWidget {
 
 class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
   Map<String, dynamic>? _serviceData;
+  String? _providerImageUrl;
+  String? _providerName;
   bool _isLoading = true;
 
   @override
@@ -24,17 +26,39 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     _fetchServiceDetails();
   }
 
-  // Fetch the service details from Firestore
+  // Fetch the service details from Firestore and provider's profile picture and name
   Future<void> _fetchServiceDetails() async {
     try {
+      // Fetch the service details
       DocumentSnapshot serviceSnapshot = await FirebaseFirestore.instance
           .collection('services')
           .doc(widget.docId)
           .get();
 
       if (serviceSnapshot.exists) {
+        _serviceData = serviceSnapshot.data() as Map<String, dynamic>?;
+
+        // Fetch the provider's profile picture and name
+        if (_serviceData != null) {
+          String providerId = _serviceData!['providerId'];
+          DocumentSnapshot providerSnapshot = await FirebaseFirestore.instance
+              .collection('prestadores_de_servico')
+              .doc(providerId)
+              .get();
+
+          if (providerSnapshot.exists) {
+            final providerData = providerSnapshot.data() as Map<String, dynamic>?;
+
+            if (providerData != null) {
+              setState(() {
+                _providerImageUrl = providerData['profilePictureUrl'];
+                _providerName = providerData['fullName'] ?? 'Nome não disponível';
+              });
+            }
+          }
+        }
+
         setState(() {
-          _serviceData = serviceSnapshot.data() as Map<String, dynamic>;
           _isLoading = false;
         });
       }
@@ -189,10 +213,22 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Display provider's profile picture if available
               CircleAvatar(
                 radius: 60,
-                backgroundImage: AssetImage('assets/avatar.jpg'), // Replace with actual profile picture
+                backgroundImage: _providerImageUrl != null
+                    ? NetworkImage(_providerImageUrl!)
+                    : AssetImage('assets/anon.png') as ImageProvider,
               ),
+              SizedBox(height: 10),
+
+              // Display provider's name
+              Text(
+                _providerName ?? 'Nome não disponível',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+
               SizedBox(height: 20),
               Text(
                 _serviceData!['serviceType'] ?? 'Tipo de serviço não disponível',
@@ -248,3 +284,4 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     );
   }
 }
+
