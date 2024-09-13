@@ -1,7 +1,15 @@
+import 'package:aplicativo_praja/post_services.dart';
+import 'package:aplicativo_praja/profile_contratante.dart';
+import 'package:aplicativo_praja/profile_prestador.dart';
 import 'package:aplicativo_praja/service_details_page.dart';
+import 'package:aplicativo_praja/service_requests.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'blank_page_1.dart';
+import 'blank_page_2.dart';
 import 'login_page.dart';
+import 'ongoing_services.dart';
+import 'ongoing_services_contratante.dart';
 import 'registration_page.dart';
 import 'registration_prestador.dart';
 import 'landing_page.dart';
@@ -52,21 +60,31 @@ class MyApp extends StatelessWidget {
         // Define your other routes here
         switch (settings.name) {
           case '/':
-            return MaterialPageRoute(builder: (context) => LandingPage()); // New Landing Page
-          case '/login':
             return MaterialPageRoute(builder: (context) => LoginPage());
-          case '/register_contratante':
+          case '/register':
             return MaterialPageRoute(builder: (context) => RegisterContratantePage());
-          case '/register_prestador':
-            return MaterialPageRoute(builder: (context) => RegisterPrestadorPage());
           case '/main':
             return MaterialPageRoute(builder: (context) => HomePage());
           case '/home_prestador':
             return MaterialPageRoute(builder: (context) => HomeScreenProvedor());
           case '/admin_home':
             return MaterialPageRoute(builder: (context) => AdminHomePage());
-          default:
-            return null;
+          case '/blank_page_1':
+            return MaterialPageRoute(builder: (context) => BlankPage1());
+          case '/blank_page_2':
+            return MaterialPageRoute(builder: (context) => BlankPage2());
+          case '/profile':
+            return MaterialPageRoute(builder: (context) => ProfilePrestador());
+          case '/ongoing_services':
+            return MaterialPageRoute(builder: (context) => OngoingServicesPage());
+          case '/service_requests':
+            return MaterialPageRoute(builder: (context) => ServiceRequestsPage());
+          case '/post_service':
+            return MaterialPageRoute(builder: (context) => PostService());
+          case '/ongoing_contratante':
+            return MaterialPageRoute(builder: (context) => OngoingServicesContratantePage());
+          case '/perfil_contratante':
+            return MaterialPageRoute(builder: (context) => ProfileContratantePage());
         }
       },
     );

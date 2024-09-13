@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'terms.dart';  // Import the terms page
+import 'terms.dart'; // Import the terms page
 
 class RegisterContratantePage extends StatefulWidget {
   @override
@@ -25,7 +25,11 @@ class _RegisterContratantePageState extends State<RegisterContratantePage> {
   String _city = '';
   String _country = 'Brasil';
 
-  bool _acceptedTerms = false;  // Track if the user accepted the terms
+  bool _acceptedTerms = false;
+  bool _isPasswordVisible = false;
+  bool _isConfirmPasswordVisible = false;
+
+  String _errorMessage = '';
 
   Future<void> _register() async {
     if (_formKey.currentState!.validate()) {
@@ -37,16 +41,14 @@ class _RegisterContratantePageState extends State<RegisterContratantePage> {
       }
 
       try {
-        // Create a new user with email and password
-        UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        UserCredential userCredential =
+        await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: _email,
           password: _password,
         );
 
-        // Get the user's UID from FirebaseAuth and add it to the Firestore document
         String uid = userCredential.user!.uid;
 
-        // Store the user data in Firestore, including the UID
         await FirebaseFirestore.instance.collection('users').doc(uid).set({
           'fullName': _fullName,
           'email': _email,
@@ -57,18 +59,17 @@ class _RegisterContratantePageState extends State<RegisterContratantePage> {
           'state': _state,
           'city': _city,
           'country': _country,
-          'uid': uid, // Add UID to the user document
+          'uid': uid,
         });
 
-        // Navigate to the home page or wherever you want after registration
         Navigator.pushReplacementNamed(context, '/');
       } on FirebaseAuthException catch (e) {
-        print('Failed with error code: ${e.code}');
-        print(e.message);
+        setState(() {
+          _errorMessage = 'Erro: ${e.message}';
+        });
       }
     }
   }
-
 
   Future<void> _fetchAddressFromCEP(String cep) async {
     final String url = 'https://viacep.com.br/ws/$cep/json/';
@@ -78,259 +79,284 @@ class _RegisterContratantePageState extends State<RegisterContratantePage> {
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
         if (data.containsKey('erro')) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('CEP não encontrado')));
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('CEP não encontrado')));
         } else {
           setState(() {
             _state = data['uf'] ?? '';
             _city = data['localidade'] ?? '';
-            _rua = data['logradouro'] ?? '';  // Autofill the street
+            _rua = data['logradouro'] ?? '';
           });
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao buscar CEP')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erro ao buscar CEP')));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao conectar com API de CEP')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao conectar com API de CEP')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          backgroundColor: Colors.yellow[700],
-          title: Text('Cadastro de Usuario'),
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back),
-            onPressed: () {
-              Navigator.pop(context);
-            },
-          ),
+      appBar: AppBar(
+        backgroundColor: Colors.yellow[700],
+        title: Text('Cadastro de Usuário'),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
         ),
-        backgroundColor: Colors.white,
-        body: SingleChildScrollView(
+      ),
+      backgroundColor: Colors.white,
+      body: SingleChildScrollView(
         child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32.0),
-    child: Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-    SizedBox(height: 60),
-    Center(
-    child: Text(
-    'PJ',
-    style: TextStyle(
-    fontSize: 50,
-    fontWeight: FontWeight.bold,
-    color: Colors.yellow[700],
-    ),
-    ),
-    ),
-    SizedBox(height: 20),
-    Center(
-    child: Text(
-    'Insira suas informações para ingressar no APP!',
-    style: TextStyle(
-    fontSize: 16,
-    color: Colors.grey[700],
-    ),
-    ),
-    ),
-    SizedBox(height: 40),
-    Form(
-    key: _formKey,
-    child: Column(
-    children: [
-    TextFormField(
-    decoration: InputDecoration(
-    labelText: 'Nome Completo',
-    border: OutlineInputBorder(),
-    filled: true,
-    fillColor: Colors.white,
-    ),
-    onChanged: (value) {
-    setState(() {
-    _fullName = value;
-    });
-    },
-    ),
-    SizedBox(height: 20),
-    TextFormField(
-    decoration: InputDecoration(
-    labelText: 'E-mail',
-    border: OutlineInputBorder(),
-    filled: true,
-    fillColor: Colors.white,
-    ),
-    onChanged: (value) {
-    setState(() {
-    _email = value;
-    });
-    },
-    ),
-    SizedBox(height: 20),
-    TextFormField(
-    decoration: InputDecoration(
-    labelText: 'Senha',
-    border: OutlineInputBorder(),
-    filled: true,
-    fillColor: Colors.white,
-    ),
-    obscureText: true,
-    onChanged: (value) {
-    setState(() {
-    _password = value;
-    });
-    },
-    ),
-    SizedBox(height: 20),
-    TextFormField(
-    decoration: InputDecoration(
-    labelText: 'Confirmar Senha',
-    border: OutlineInputBorder(),
-    filled: true,
-    fillColor: Colors.white,
-    ),
-    obscureText: true,
-    onChanged: (value) {
-    setState(() {
-    _confirmPassword = value;
-    });
-    },
-    ),
-    SizedBox(height: 20),
-    TextFormField(
-    decoration: InputDecoration(
-    labelText: 'CEP',
-    border: OutlineInputBorder(),
-    filled: true,
-    fillColor: Colors.white,
-    ),
-    keyboardType: TextInputType.number,
-    onChanged: (value) {
-    setState(() {
-    _cep = value;
-    });
-    if (value.length == 8) {
-    _fetchAddressFromCEP(value);
-    }
-    },
-    ),
-    SizedBox(height: 20),
-    TextFormField(
-    decoration: InputDecoration(
-    labelText: 'Rua',
-    border: OutlineInputBorder(),
-    filled: true,
-    fillColor: Colors.white,
-    ),
-    controller: TextEditingController(text: _rua),
-    readOnly: true,
-    ),
-    SizedBox(height: 20),
-    TextFormField(
-    decoration: InputDecoration(
-    labelText: 'Número',
-    border: OutlineInputBorder(),
-    filled: true,
-    fillColor: Colors.white,
-    ),
-    onChanged: (value) {
-    setState(() {
-    _numero = value;
-    });
-    },
-    ),
-    SizedBox(height: 20),
-    TextFormField(
-    decoration: InputDecoration(
-    labelText: 'Cidade',
-    border: OutlineInputBorder(),
-    filled: true,
-    fillColor: Colors.white,
-    ),
-    controller: TextEditingController(text: _city),
-    readOnly: true,
-    ),
-    SizedBox(height: 20),
-    TextFormField(
-    decoration: InputDecoration(
-    labelText: 'Estado',
-    border: OutlineInputBorder(),
-    filled: true,
-    fillColor: Colors.white,
-    ),
-    controller: TextEditingController(text: _state),
-    readOnly: true,
-    ),
-    SizedBox(height: 20),
-    TextFormField(
-    decoration: InputDecoration(
-    labelText: 'País',
-    border: OutlineInputBorder(),
-    filled: true,
-    fillColor: Colors.white,
-    ),
-      controller: TextEditingController(text: _country),
-      readOnly: true,
-    ),
-      SizedBox(height: 20),
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Checkbox(
-            value: _acceptedTerms,
-            onChanged: (bool? value) {
-              setState(() {
-                _acceptedTerms = value ?? false;
-              });
-            },
-          ),
-          Expanded(
-            child: GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => TermsPage()),
-                );
-              },
-              child: Text.rich(
-                TextSpan(
-                  text: 'Eu li e aceito os ',
+          padding: const EdgeInsets.symmetric(horizontal: 32.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(height: 20),
+              Center(
+                child: Text(
+                  'PJ',
+                  style: TextStyle(
+                    fontSize: 50,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.yellow[700],
+                  ),
+                ),
+              ),
+              SizedBox(height: 20),
+              Center(
+                child: Text(
+                  'Insira suas informações para ingressar no APP!',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[700],
+                  ),
+                ),
+              ),
+              SizedBox(height: 40),
+
+              if (_errorMessage.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: Text(
+                    _errorMessage,
+                    style: TextStyle(color: Colors.red, fontSize: 14),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+
+              Form(
+                key: _formKey,
+                child: Column(
                   children: [
-                    TextSpan(
-                      text: 'Termos de Uso',
-                      style: TextStyle(
-                        color: Colors.blue,
-                        decoration: TextDecoration.underline,
+                    _buildTextField(
+                      label: 'Nome Completo',
+                      onChanged: (value) => _fullName = value,
+                      validator: (value) =>
+                      value == null || value.isEmpty
+                          ? 'Campo obrigatório'
+                          : null,
+                    ),
+                    SizedBox(height: 20),
+                    _buildTextField(
+                      label: 'E-mail',
+                      onChanged: (value) => _email = value,
+                      validator: (value) =>
+                      value == null || value.isEmpty
+                          ? 'Campo obrigatório'
+                          : null,
+                    ),
+                    SizedBox(height: 20),
+                    _buildPasswordField(
+                      label: 'Senha',
+                      isVisible: _isPasswordVisible,
+                      onChanged: (value) => _password = value,
+                      onToggleVisibility: () {
+                        setState(() {
+                          _isPasswordVisible = !_isPasswordVisible;
+                        });
+                      },
+                      validator: (value) =>
+                      value == null || value.isEmpty
+                          ? 'Campo obrigatório'
+                          : null,
+                    ),
+                    SizedBox(height: 20),
+                    _buildPasswordField(
+                      label: 'Confirmar Senha',
+                      isVisible: _isConfirmPasswordVisible,
+                      onChanged: (value) => _confirmPassword = value,
+                      onToggleVisibility: () {
+                        setState(() {
+                          _isConfirmPasswordVisible =
+                          !_isConfirmPasswordVisible;
+                        });
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Campo obrigatório';
+                        } else if (value != _password) {
+                          return 'As senhas não coincidem';
+                        }
+                        return null;
+                      },
+                    ),
+                    SizedBox(height: 20),
+                    _buildTextField(
+                      label: 'CEP',
+                      keyboardType: TextInputType.number,
+                      onChanged: (value) {
+                        setState(() {
+                          _cep = value;
+                        });
+                        if (value.length == 8) {
+                          _fetchAddressFromCEP(value);
+                        }
+                      },
+                      validator: (value) =>
+                      value == null || value.isEmpty
+                          ? 'Campo obrigatório'
+                          : null,
+                    ),
+                    SizedBox(height: 20),
+                    _buildReadOnlyField(label: 'Rua', value: _rua),
+                    SizedBox(height: 20),
+                    _buildTextField(
+                      label: 'Número',
+                      onChanged: (value) => _numero = value,
+                      validator: (value) =>
+                      value == null || value.isEmpty
+                          ? 'Campo obrigatório'
+                          : null,
+                    ),
+                    SizedBox(height: 20),
+                    _buildReadOnlyField(label: 'Cidade', value: _city),
+                    SizedBox(height: 20),
+                    _buildReadOnlyField(label: 'Estado', value: _state),
+                    SizedBox(height: 20),
+                    _buildReadOnlyField(label: 'País', value: _country),
+                    SizedBox(height: 20),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Checkbox(
+                          value: _acceptedTerms,
+                          onChanged: (bool? value) {
+                            setState(() {
+                              _acceptedTerms = value ?? false;
+                            });
+                          },
+                        ),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => TermsPage()),
+                              );
+                            },
+                            child: Text.rich(
+                              TextSpan(
+                                text: 'Eu li e aceito os ',
+                                children: [
+                                  TextSpan(
+                                    text: 'Termos de Uso',
+                                    style: TextStyle(
+                                      color: Colors.blue,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 40),
+                    ElevatedButton(
+                      onPressed: _register,
+                      style: ElevatedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 16.0),
+                        backgroundColor: Colors.yellow[700],
+                      ),
+                      child: Text(
+                        'Confirme seus dados',
+                        style: TextStyle(fontSize: 16, color: Colors.white),
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
-      SizedBox(height: 40),
-      ElevatedButton(
-        onPressed: _register,
-        style: ElevatedButton.styleFrom(
-          padding: EdgeInsets.symmetric(vertical: 16.0),
-          backgroundColor: Colors.yellow[700],
-        ),
-        child: Text(
-          'Confirme seus dados',
-          style: TextStyle(fontSize: 16),
         ),
       ),
-    ],
-    ),
-    ),
-    ],
-    ),
+    );
+  }
+
+  Widget _buildTextField({
+    required String label,
+    TextInputType keyboardType = TextInputType.text,
+    required ValueChanged<String> onChanged,
+    required FormFieldValidator<String> validator,
+  }) {
+    return TextFormField(
+      decoration: InputDecoration(
+        labelText: label,
+        border: OutlineInputBorder(),
+        filled: true,
+        fillColor: Colors.white,
+      ),
+      keyboardType: keyboardType,
+      onChanged: onChanged,
+      validator: validator,
+    );
+  }
+
+  Widget _buildPasswordField({
+    required String label,
+    required bool isVisible,
+    required ValueChanged<String> onChanged,
+    required VoidCallback onToggleVisibility,
+    required FormFieldValidator<String> validator,
+  }) {
+    return TextFormField(
+      decoration: InputDecoration(
+        labelText: label,
+        border: OutlineInputBorder(),
+        filled: true,
+        fillColor: Colors.white,
+        suffixIcon: IconButton(
+          icon: Icon(isVisible ? Icons.visibility : Icons.visibility_off),
+          onPressed: onToggleVisibility,
         ),
-        ),
+      ),
+      obscureText: !isVisible,
+      onChanged: onChanged,
+      validator: validator,
+    );
+  }
+
+  Widget _buildReadOnlyField({required String label, required String value}) {
+    return TextFormField(
+      decoration: InputDecoration(
+        labelText: label,
+        border: OutlineInputBorder(),
+        filled: true,
+        fillColor: Colors.white,
+      ),
+      controller: TextEditingController(text: value),
+      readOnly: true,
     );
   }
 }
+
 

@@ -278,18 +278,7 @@ class _HomePageState extends State<HomePage> {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: 'Buscar Serviços',
-                  prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  filled: true,
-                  fillColor: Colors.grey[200],
-                ),
-              ),
+
             ),
             SizedBox(height: 20),
             Padding(
@@ -343,7 +332,7 @@ class _HomePageState extends State<HomePage> {
                   crossAxisCount: 2,
                   mainAxisSpacing: 16,
                   crossAxisSpacing: 16,
-                  childAspectRatio: 0.65,
+                  childAspectRatio: 0.6,
                 ),
                 itemCount: _services.length,
                 itemBuilder: (context, index) {
@@ -449,13 +438,21 @@ class _HomePageState extends State<HomePage> {
               Text(
                 'Pressione para mais detalhes',
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+
               ),
+              SizedBox(height: 10)
             ],
+
           ),
+
         ),
+
       ),
+
     );
   }
 }
+
+
 
 

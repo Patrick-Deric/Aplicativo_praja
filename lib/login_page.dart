@@ -1,8 +1,7 @@
-import 'package:aplicativo_praja/registration_page.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'registration_page.dart'; // New page for contratantes registration
-import 'registration_prestador.dart'; // New page for prestadores registration
+import 'registration_page.dart';
+import 'registration_prestador.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginPage extends StatefulWidget {
@@ -14,14 +13,14 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   String _email = '';
   String _password = '';
+  bool _isPasswordVisible = false; // To toggle password visibility
+  String _errorMessage = ''; // To show error message
 
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
       try {
-        UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: _email,
-          password: _password,
-        );
+        UserCredential userCredential = await FirebaseAuth.instance
+            .signInWithEmailAndPassword(email: _email, password: _password);
 
         DocumentSnapshot userDoc = await FirebaseFirestore.instance
             .collection('users')
@@ -38,8 +37,9 @@ class _LoginPageState extends State<LoginPage> {
           Navigator.pushReplacementNamed(context, '/main');
         }
       } on FirebaseAuthException catch (e) {
-        print('Failed with error code: ${e.code}');
-        print(e.message);
+        setState(() {
+          _errorMessage = 'Erro: email ou senha incorreta'; // Set error message
+        });
       }
     }
   }
@@ -76,6 +76,15 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               SizedBox(height: 40),
+              if (_errorMessage.isNotEmpty) // Show error message if any
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: Text(
+                    _errorMessage,
+                    style: TextStyle(color: Colors.red, fontSize: 14),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               Form(
                 key: _formKey,
                 child: Column(
@@ -93,6 +102,12 @@ class _LoginPageState extends State<LoginPage> {
                           _email = value;
                         });
                       },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, insira o e-mail';
+                        }
+                        return null;
+                      },
                     ),
                     SizedBox(height: 20),
                     TextFormField(
@@ -100,14 +115,30 @@ class _LoginPageState extends State<LoginPage> {
                         labelText: 'Senha',
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.lock),
+                        suffixIcon: IconButton(
+                          icon: Icon(_isPasswordVisible
+                              ? Icons.visibility
+                              : Icons.visibility_off),
+                          onPressed: () {
+                            setState(() {
+                              _isPasswordVisible = !_isPasswordVisible;
+                            });
+                          },
+                        ),
                         filled: true,
                         fillColor: Colors.white,
                       ),
-                      obscureText: true,
+                      obscureText: !_isPasswordVisible, // Toggle visibility
                       onChanged: (value) {
                         setState(() {
                           _password = value;
                         });
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, insira a senha';
+                        }
+                        return null;
                       },
                     ),
                     SizedBox(height: 20),
@@ -137,7 +168,8 @@ class _LoginPageState extends State<LoginPage> {
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => RegisterContratantePage()),
+                          MaterialPageRoute(
+                              builder: (context) => RegisterContratantePage()),
                         );
                       },
                       child: Text(
@@ -150,7 +182,8 @@ class _LoginPageState extends State<LoginPage> {
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => RegisterPrestadorPage()),
+                          MaterialPageRoute(
+                              builder: (context) => RegisterPrestadorPage()),
                         );
                       },
                       child: Text(
@@ -168,4 +201,5 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
+
 

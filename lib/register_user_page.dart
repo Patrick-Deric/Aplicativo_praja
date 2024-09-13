@@ -13,16 +13,21 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
   String _email = '';
   String _password = '';
   String _role = 'contratante'; // Default role
+  bool _isPasswordVisible = false; // To toggle password visibility
+  String _errorMessage = ''; // Error message for Firebase
 
   Future<void> _register() async {
     if (_formKey.currentState!.validate()) {
       try {
-        UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: _email,
-          password: _password,
-        );
+        // Register user in Firebase Authentication
+        UserCredential userCredential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(email: _email, password: _password);
 
-        await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
+        // Store user details in Firestore
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredential.user!.uid)
+            .set({
           'fullName': _fullName,
           'email': _email,
           'role': _role,
@@ -30,8 +35,9 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
 
         Navigator.pop(context); // Go back to the admin home page
       } on FirebaseAuthException catch (e) {
-        print('Failed with error code: ${e.code}');
-        print(e.message);
+        setState(() {
+          _errorMessage = 'Erro: ${e.message}'; // Set the error message
+        });
       }
     }
   }
@@ -40,7 +46,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Register New User'),
+        title: Text('Registrar Novo Usuário'),
         backgroundColor: Colors.yellow[700],
       ),
       body: SingleChildScrollView(
@@ -50,14 +56,28 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               SizedBox(height: 60),
+
+              // Error Message Display
+              if (_errorMessage.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: Text(
+                    _errorMessage,
+                    style: TextStyle(color: Colors.red, fontSize: 14),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+
               Form(
                 key: _formKey,
                 child: Column(
                   children: [
+                    // Full Name Field
                     TextFormField(
                       decoration: InputDecoration(
                         labelText: 'Nome Completo',
                         border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.person),
                         filled: true,
                         fillColor: Colors.white,
                       ),
@@ -66,12 +86,21 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                           _fullName = value;
                         });
                       },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, insira o nome completo';
+                        }
+                        return null;
+                      },
                     ),
                     SizedBox(height: 20),
+
+                    // Email Field
                     TextFormField(
                       decoration: InputDecoration(
                         labelText: 'E-mail',
                         border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.email),
                         filled: true,
                         fillColor: Colors.white,
                       ),
@@ -80,23 +109,58 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                           _email = value;
                         });
                       },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, insira o e-mail';
+                        }
+                        if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                          return 'Por favor, insira um e-mail válido';
+                        }
+                        return null;
+                      },
                     ),
                     SizedBox(height: 20),
+
+                    // Password Field with Visibility Toggle
                     TextFormField(
                       decoration: InputDecoration(
                         labelText: 'Senha',
                         border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.lock),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _isPasswordVisible
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _isPasswordVisible = !_isPasswordVisible;
+                            });
+                          },
+                        ),
                         filled: true,
                         fillColor: Colors.white,
                       ),
-                      obscureText: true,
+                      obscureText: !_isPasswordVisible, // Toggle password visibility
                       onChanged: (value) {
                         setState(() {
                           _password = value;
                         });
                       },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, insira a senha';
+                        }
+                        if (value.length < 6) {
+                          return 'A senha deve ter pelo menos 6 caracteres';
+                        }
+                        return null;
+                      },
                     ),
                     SizedBox(height: 20),
+
+                    // Role Dropdown
                     DropdownButtonFormField<String>(
                       decoration: InputDecoration(
                         border: OutlineInputBorder(),
@@ -125,14 +189,17 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                       },
                     ),
                     SizedBox(height: 40),
+
+                    // Register Button
                     ElevatedButton(
                       onPressed: _register,
                       style: ElevatedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(vertical: 16.0), backgroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(vertical: 16.0),
+                        backgroundColor: Colors.yellow[700],
                       ),
                       child: Text(
                         'Registrar',
-                        style: TextStyle(fontSize: 16),
+                        style: TextStyle(fontSize: 16, color: Colors.white),
                       ),
                     ),
                   ],
@@ -145,3 +212,4 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
     );
   }
 }
+

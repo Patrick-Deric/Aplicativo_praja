@@ -106,7 +106,7 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     }
   }
 
-  // Function to request service without sending WhatsApp
+  // Function to request service with confirmation dialog
   Future<void> _requestService() async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
@@ -116,24 +116,48 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
       return;
     }
 
-    try {
-      // Create a new service request in the Firestore database
-      await FirebaseFirestore.instance.collection('service_requests').add({
-        'serviceId': widget.docId,
-        'providerId': _serviceData!['providerId'],
-        'contratanteId': currentUser.uid,
-        'status': 'pending', // Initially pending status
-        'timestamp': Timestamp.now(),
-      });
+    // Show confirmation dialog before requesting the service
+    final shouldRequestService = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Confirmação'),
+          content: Text('Entre em contato antes com o prestador para requisitar o serviço. Você deseja continuar?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false), // User pressed 'Cancel'
+              child: Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true), // User pressed 'Continue'
+              child: Text('Continuar'),
+            ),
+          ],
+        );
+      },
+    );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Serviço requisitado com sucesso!')),
-      );
-    } catch (e) {
-      print('Error requesting service: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao requisitar o serviço.')),
-      );
+    // If the user agrees to proceed
+    if (shouldRequestService == true) {
+      try {
+        // Create a new service request in the Firestore database
+        await FirebaseFirestore.instance.collection('service_requests').add({
+          'serviceId': widget.docId,
+          'providerId': _serviceData!['providerId'],
+          'contratanteId': currentUser.uid,
+          'status': 'pending', // Initially pending status
+          'timestamp': Timestamp.now(),
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Serviço requisitado com sucesso!')),
+        );
+      } catch (e) {
+        print('Error requesting service: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao requisitar o serviço.')),
+        );
+      }
     }
   }
 
@@ -206,16 +230,15 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
 
               SizedBox(height: 10), // Space between buttons
 
-              // New button to request service
+              // New button to request service with confirmation
               ElevatedButton(
-                onPressed: _requestService, // Request service when pressed
+                onPressed: _requestService, // Request service with confirmation dialog
                 style: ElevatedButton.styleFrom(
                   padding: EdgeInsets.symmetric(vertical: 16.0),
                   backgroundColor: Colors.green[700],
                 ),
                 child: Text(
                   'Requisitar Serviço',
-                  style: TextStyle(fontSize: 16),
                 ),
               ),
             ],
