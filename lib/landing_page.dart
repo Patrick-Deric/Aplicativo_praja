@@ -124,7 +124,7 @@ class LandingPage extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 50.0),
                             child: ElevatedButton(
                               onPressed: () {
-                                Navigator.pushNamed(context, '/register_contratante'); // Navigate to contratante registration
+                                Navigator.pushNamed(context, '/register'); // Navigate to contratante registration
                               },
                               style: ElevatedButton.styleFrom(
                                 padding: EdgeInsets.symmetric(vertical: 16.0),

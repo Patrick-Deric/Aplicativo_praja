@@ -23,7 +23,8 @@ class _ProfilePrestadorState extends State<ProfilePrestador> {
   String _rua = '';
   String _numero = '';
   String _jobRole = '';
-  double _rating = 0.0;
+  double _averageRating = 0.0; // Renamed to averageRating for clarity
+  int _completedServices = 0; // Track completed services
 
   bool _isEditing = false;
 
@@ -53,7 +54,8 @@ class _ProfilePrestadorState extends State<ProfilePrestador> {
           _rua = userData['rua'] ?? 'Rua não disponível';
           _numero = userData['numero'] ?? 'Número não disponível';
           _jobRole = userData['jobRole'] ?? 'Profissão não disponível';
-          _rating = userData['rating'] ?? 0.0;
+          _averageRating = userData['averageRating'] ?? 0.0; // Fetch average rating
+          _completedServices = userData['completedServices'] ?? 0; // Fetch completed services
 
           // Check if 'profilePictureUrl' exists in the userData
           _imageUrl = userData.containsKey('profilePictureUrl')
@@ -282,19 +284,43 @@ class _ProfilePrestadorState extends State<ProfilePrestador> {
               isPassword: true,
             ),
 
-            // Rating display
+            // Rating and Completed Services display
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                Icon(Icons.star, color: Colors.yellow),
-                SizedBox(width: 10),
-                Text(
-                  'Avaliação:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                SizedBox(width: 10),
-                Text(
-                  _rating.toString(),
-                  style: TextStyle(fontSize: 24, color: Colors.yellow),
+                Column(
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.star, color: Colors.yellow),
+                        SizedBox(width: 10),
+                        Text(
+                          'Avaliação:',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        SizedBox(width: 10),
+                        Text(
+                          _averageRating.toStringAsFixed(1),
+                          style: TextStyle(fontSize: 24, color: Colors.yellow),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Icon(Icons.check_circle_outline, color: Colors.green),
+                        SizedBox(width: 10),
+                        Text(
+                          'Serviços Concluídos:',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        SizedBox(width: 10),
+                        Text(
+                          _completedServices.toString(),
+                          style: TextStyle(fontSize: 24, color: Colors.green),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -318,3 +344,4 @@ class _ProfilePrestadorState extends State<ProfilePrestador> {
     );
   }
 }
+

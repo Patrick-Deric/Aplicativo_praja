@@ -65,6 +65,8 @@ class MyApp extends StatelessWidget {
             return MaterialPageRoute(builder: (context) => LoginPage());
           case '/register':
             return MaterialPageRoute(builder: (context) => RegisterContratantePage());
+          case '/register_prestador':
+            return MaterialPageRoute(builder: (context) => RegisterPrestadorPage());
           case '/main':
             return MaterialPageRoute(builder: (context) => HomePage());
           case '/home_prestador':

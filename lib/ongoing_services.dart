@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Added for user authentication
+import 'package:firebase_auth/firebase_auth.dart';
 
 class OngoingServicesPage extends StatefulWidget {
   @override
@@ -9,7 +9,7 @@ class OngoingServicesPage extends StatefulWidget {
 }
 
 class _OngoingServicesPageState extends State<OngoingServicesPage> {
-  final User? currentUser = FirebaseAuth.instance.currentUser; // Get current authenticated user
+  final User? currentUser = FirebaseAuth.instance.currentUser;
 
   @override
   Widget build(BuildContext context) {
@@ -27,8 +27,8 @@ class _OngoingServicesPageState extends State<OngoingServicesPage> {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('service_requests')
-            .where('status', isEqualTo: 'ongoing') // Only fetch ongoing services
-            .where('providerId', isEqualTo: currentUser!.uid) // Filter by current provider's ID
+            .where('status', isEqualTo: 'ongoing')
+            .where('providerId', isEqualTo: currentUser!.uid)
             .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
@@ -58,9 +58,18 @@ class _OngoingServicesPageState extends State<OngoingServicesPage> {
   // Function to build a card for each ongoing service
   Widget _buildOngoingServiceCard(BuildContext context, QueryDocumentSnapshot service) {
     String requestId = service.id;
-    Timestamp timestamp = service['timestamp'];
-    DateTime requestTime = timestamp.toDate();
-    String formattedTime = DateFormat('dd/MM/yyyy HH:mm').format(requestTime);
+
+    // Handle missing 'createdAt' field with a fallback
+    DateTime createdAt;
+    var serviceData = service.data() as Map<String, dynamic>?;
+
+    if (serviceData != null && serviceData.containsKey('createdAt')) {
+      createdAt = serviceData['createdAt'].toDate();
+    } else {
+      createdAt = DateTime.now(); // Default fallback, or handle differently
+    }
+
+    String formattedTime = DateFormat('dd/MM/yyyy HH:mm').format(createdAt);
 
     return Card(
       margin: EdgeInsets.all(10),
@@ -108,12 +117,6 @@ class _OngoingServicesPageState extends State<OngoingServicesPage> {
       // Remove the service from 'service_requests'
       await FirebaseFirestore.instance.collection('service_requests').doc(requestId).delete();
 
-      // Notify the contratante about the service completion for rating
-      await FirebaseFirestore.instance.collection('service_requests').doc(requestId).update({
-        'status': 'completed', // Mark as completed for contratante to rate
-      });
-
-      // Update the UI
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Serviço concluído com sucesso!')),
       );
@@ -125,7 +128,5 @@ class _OngoingServicesPageState extends State<OngoingServicesPage> {
     }
   }
 }
-
-
 
 

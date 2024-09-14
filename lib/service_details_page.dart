@@ -140,50 +140,41 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
       return;
     }
 
-    // Show confirmation dialog before requesting the service
-    final shouldRequestService = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Confirmação'),
-          content: Text('Entre em contato antes com o prestador para requisitar o serviço. Você deseja continuar?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false), // User pressed 'Cancel'
-              child: Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true), // User pressed 'Continue'
-              child: Text('Continuar'),
-            ),
-          ],
-        );
-      },
-    );
+    // Check if the current user is a contratante
+    DocumentSnapshot userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser.uid)
+        .get();
 
-    // If the user agrees to proceed
-    if (shouldRequestService == true) {
-      try {
-        // Create a new service request in the Firestore database
-        await FirebaseFirestore.instance.collection('service_requests').add({
-          'serviceId': widget.docId,
-          'providerId': _serviceData!['providerId'],
-          'contratanteId': currentUser.uid,
-          'status': 'pending', // Initially pending status
-          'timestamp': Timestamp.now(),
-        });
+    String role = userDoc['role'];
+    if (role != 'contratante') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Somente contratantes podem requisitar serviços.')),
+      );
+      return;
+    }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Serviço requisitado com sucesso!')),
-        );
-      } catch (e) {
-        print('Error requesting service: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao requisitar o serviço.')),
-        );
-      }
+    // Proceed with requesting the service
+    try {
+      await FirebaseFirestore.instance.collection('service_requests').add({
+        'serviceId': widget.docId,
+        'providerId': _serviceData!['providerId'],
+        'contratanteId': currentUser.uid,
+        'status': 'pending',
+        'timestamp': Timestamp.now(),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Serviço requisitado com sucesso!')),
+      );
+    } catch (e) {
+      print('Error requesting service: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao requisitar o serviço.')),
+      );
     }
   }
+
 
   // Format the available dates
   String _formatAvailableDates(List<dynamic>? availableDates) {

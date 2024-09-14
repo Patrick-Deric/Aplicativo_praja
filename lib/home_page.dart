@@ -27,7 +27,40 @@ class _HomePageState extends State<HomePage> {
   bool _locationServiceEnabled = false;
   GoogleMapController? _mapController;
   final Set<Marker> _markers = {};
-  bool _loadingServices = false;  // Keep track of loading state
+  bool _loadingServices = false;
+
+  String? _profileImageUrl;
+  User? _user;
+
+  @override
+  void initState() {
+    super.initState();
+    _user = FirebaseAuth.instance.currentUser;
+    _fetchUserProfile();
+    _checkInternetConnection();
+    _checkLocationPermissions();
+    _checkPendingRatings();  // Check for services that need ratings
+  }
+
+  Future<void> _fetchUserProfile() async {
+    if (_user != null) {
+      try {
+        DocumentSnapshot userSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(_user!.uid)
+            .get();
+
+        if (userSnapshot.exists && userSnapshot.data() != null) {
+          setState(() {
+            final data = userSnapshot.data() as Map<String, dynamic>;
+            _profileImageUrl = data.containsKey('profilePictureUrl') ? data['profilePictureUrl'] : null;
+          });
+        }
+      } catch (e) {
+        print('Error fetching user profile: $e');
+      }
+    }
+  }
 
   Future<void> _logoff() async {
     await FirebaseAuth.instance.signOut();
@@ -35,14 +68,6 @@ class _HomePageState extends State<HomePage> {
       context,
       MaterialPageRoute(builder: (context) => LoginPage()),
     );
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _checkInternetConnection();
-    _checkLocationPermissions();
-    _checkPendingRatings();
   }
 
   Future<void> _checkInternetConnection() async {
@@ -109,28 +134,26 @@ class _HomePageState extends State<HomePage> {
 
     try {
       _currentPosition = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-      _loadNearbyProviders(); // Load nearby providers and services
+      _loadNearbyProviders();
     } catch (e) {
       print('Error getting location: $e');
     }
   }
 
   Future<void> _loadNearbyProviders() async {
-    if (_currentPosition == null || _loadingServices) return; // Avoid loading multiple times
+    if (_currentPosition == null || _loadingServices) return;
 
     setState(() {
       _loadingServices = true;
     });
 
     try {
-      // Fetch all pending services
       final QuerySnapshot servicesSnapshot = await FirebaseFirestore.instance
           .collection('services')
-          .where('status', isEqualTo: 'pending') // Only fetch pending services
-          .limit(50)  // Limit to avoid performance issues
+          .where('status', isEqualTo: 'pending')
+          .limit(50)
           .get();
 
-      // Clear services before loading new ones
       setState(() {
         _services.clear();
         _markers.clear();
@@ -139,13 +162,11 @@ class _HomePageState extends State<HomePage> {
       for (var doc in servicesSnapshot.docs) {
         var serviceLocation = doc['location'];
 
-        // Validate the service location before adding markers
         if (serviceLocation == null) {
           print('Service ${doc.id} is missing location data.');
           continue;
         }
 
-        // Check the type and parse location accordingly
         if (serviceLocation is GeoPoint) {
           _addServiceMarker(serviceLocation.latitude, serviceLocation.longitude, doc);
         } else if (serviceLocation is String && serviceLocation.contains(',')) {
@@ -158,8 +179,6 @@ class _HomePageState extends State<HomePage> {
           print("Invalid or missing location data for service: ${doc.id}");
         }
       }
-
-      print("Services loaded: ${_services.length}"); // Log service count
     } catch (e) {
       print('Error loading services: $e');
     } finally {
@@ -218,32 +237,23 @@ class _HomePageState extends State<HomePage> {
     final userId = FirebaseAuth.instance.currentUser!.uid;
 
     QuerySnapshot completedServices = await FirebaseFirestore.instance
-        .collection('service_requests')
-        .where('status', isEqualTo: 'completed')
+        .collection('completed_services')
+        .where('needsRating', isEqualTo: true)
         .where('contratanteId', isEqualTo: userId)
-        .limit(5)  // Limit to avoid heavy queries
+        .limit(5)
         .get();
 
     for (var service in completedServices.docs) {
       String serviceId = service.id;
-      String providerId = service['providerId'];
-
-      QuerySnapshot ratingSnapshot = await FirebaseFirestore.instance
-          .collection('ratings')
-          .where('serviceId', isEqualTo: serviceId)
-          .get();
-
-      if (ratingSnapshot.docs.isEmpty) {
-        _showRatingDialog(serviceId, providerId);
-      }
+      _showRatingDialog(serviceId);
     }
   }
 
-  void _showRatingDialog(String serviceId, String providerId) {
+  void _showRatingDialog(String serviceId) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => RateServicePage(serviceId: serviceId, providerId: providerId),
+        builder: (context) => RateServicePage(serviceId: serviceId),
       ),
     );
   }
@@ -260,7 +270,10 @@ class _HomePageState extends State<HomePage> {
             Text('PJ', style: TextStyle(color: Colors.white)),
             Spacer(),
             CircleAvatar(
-              backgroundImage: AssetImage('assets/avatar.jpg'),
+              radius: 20,
+              backgroundImage: _profileImageUrl != null
+                  ? NetworkImage(_profileImageUrl!)
+                  : AssetImage('assets/avatar.jpg') as ImageProvider,
             ),
           ],
         ),
@@ -271,14 +284,12 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
-
             ),
             SizedBox(height: 20),
             Padding(
@@ -438,21 +449,12 @@ class _HomePageState extends State<HomePage> {
               Text(
                 'Pressione para mais detalhes',
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-
               ),
-              SizedBox(height: 10)
             ],
-
           ),
-
         ),
-
       ),
-
     );
   }
 }
-
-
-
 

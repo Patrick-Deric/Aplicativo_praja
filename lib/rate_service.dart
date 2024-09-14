@@ -4,9 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class RateServicePage extends StatefulWidget {
   final String serviceId;
-  final String providerId;
 
-  RateServicePage({required this.serviceId, required this.providerId});
+  RateServicePage({required this.serviceId});
 
   @override
   _RateServicePageState createState() => _RateServicePageState();
@@ -15,7 +14,9 @@ class RateServicePage extends StatefulWidget {
 class _RateServicePageState extends State<RateServicePage> {
   int _rating = 0;
   List<String> _elogios = [];
-  bool _isSubmitting = false; // Loading state for submission
+  bool _isSubmitting = false;
+  String? _providerId; // Fetch this from Firestore
+  String? _errorMessage;
 
   final List<String> elogioOptions = [
     'Ótimo atendimento',
@@ -26,106 +27,116 @@ class _RateServicePageState extends State<RateServicePage> {
     'Boa rota',
   ];
 
-  Future<void> _submitRating() async {
-    setState(() {
-      _isSubmitting = true; // Start loading
-    });
+  @override
+  void initState() {
+    super.initState();
+    _fetchServiceDetails(); // Fetch service details when the page loads
+  }
 
+  // Fetch service details from Firestore
+  Future<void> _fetchServiceDetails() async {
     try {
-      print("Submitting rating..."); // Debug: Starting submission
-      print("Service ID: ${widget.serviceId}, Provider ID: ${widget.providerId}, Rating: $_rating");
+      DocumentSnapshot serviceSnapshot = await FirebaseFirestore.instance
+          .collection('completed_services')
+          .doc(widget.serviceId)
+          .get();
 
-      // Store the rating in Firestore
+      if (serviceSnapshot.exists) {
+        final serviceData = serviceSnapshot.data() as Map<String, dynamic>?;
+
+        if (serviceData != null && serviceData.containsKey('providerId')) {
+          setState(() {
+            _providerId = serviceData['providerId'];
+          });
+        } else {
+          setState(() {
+            _errorMessage = 'Erro: Não foi possível carregar o serviço.';
+          });
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Erro ao buscar detalhes do serviço: $e';
+      });
+    }
+  }
+
+  Future<void> _submitRating() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Usuário não autenticado!')),
+      );
+      return;
+    }
+
+    // Check if the user is a contratante
+    DocumentSnapshot userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser.uid)
+        .get();
+
+    String role = userDoc['role'];
+    if (role != 'contratante') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Somente contratantes podem enviar avaliações.')),
+      );
+      return;
+    }
+
+    // Proceed with submitting the rating
+    try {
       await FirebaseFirestore.instance.collection('ratings').add({
         'serviceId': widget.serviceId,
-        'prestadorId': widget.providerId,
-        'contratanteId': FirebaseAuth.instance.currentUser!.uid,
+        'providerId': _providerId,
+        'contratanteId': currentUser.uid,
         'rating': _rating,
         'elogios': _elogios,
         'timestamp': Timestamp.now(),
       });
 
-      print("Rating submitted successfully."); // Debug: Success
-
-      // Update the prestador's average rating and completed service count
-      await _updatePrestadorRating();
-
-      // Update the service status in 'service_requests' to 'rated'
-      await FirebaseFirestore.instance.collection('service_requests').doc(widget.serviceId).update({
-        'status': 'rated',
+      await FirebaseFirestore.instance.collection('completed_services').doc(widget.serviceId).update({
+        'needsRating': false,
       });
 
-      // Show confirmation and navigate back
-      setState(() {
-        _isSubmitting = false; // End loading
-      });
-
-      Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Obrigado pela sua avaliação!')),
       );
+
+      Navigator.pop(context);
     } catch (e) {
-      print('Error submitting rating: $e'); // Debug: Log the error
-      if (e is FirebaseException) {
-        print('Firebase error code: ${e.code}, message: ${e.message}'); // Catch Firebase-specific error
-      }
-      setState(() {
-        _isSubmitting = false; // End loading
-      });
+      print('Erro ao enviar a avaliação: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao enviar a avaliação. Tente novamente.')),
+        SnackBar(content: Text('Erro ao enviar a avaliação.')),
       );
     }
   }
 
-  Future<void> _updatePrestadorRating() async {
-    try {
-      print("Updating prestador's rating..."); // Debug: Start updating
 
-      // Fetch all ratings for the prestador
+  Future<void> _updateProviderRating() async {
+    try {
       QuerySnapshot ratingsSnapshot = await FirebaseFirestore.instance
           .collection('ratings')
-          .where('prestadorId', isEqualTo: widget.providerId)
+          .where('providerId', isEqualTo: _providerId)
           .get();
 
-      print("Fetched ${ratingsSnapshot.docs.length} ratings for the prestador."); // Debug: Rating count
-
-      // Calculate the new average rating
       int totalRatings = ratingsSnapshot.docs.length;
       int sumRatings = ratingsSnapshot.docs.fold(
         0,
-            (previousValue, doc) => previousValue + doc['rating'] as int,
+            (previousValue, doc) => previousValue + (doc['rating'] as int),
       );
       double averageRating = sumRatings / totalRatings;
 
-      print("New average rating: $averageRating"); // Debug: New average rating
-
-      // Update the prestador's profile with the new rating and completed services count
-      await FirebaseFirestore.instance.collection('prestadores_de_servico').doc(widget.providerId).update({
+      await FirebaseFirestore.instance
+          .collection('prestadores_de_servico')
+          .doc(_providerId)
+          .update({
         'averageRating': averageRating,
         'completedServices': totalRatings,
       });
-
-      print("Prestador's rating updated successfully."); // Debug: Success
     } catch (e) {
-      print('Error updating prestador rating: $e'); // Debug: Log the error
+      print('Erro ao atualizar a avaliação do prestador: $e');
     }
-  }
-
-  Widget _buildElogioOption(String elogio) {
-    return ChoiceChip(
-      label: Text(elogio),
-      selected: _elogios.contains(elogio),
-      onSelected: (bool selected) {
-        setState(() {
-          if (selected) {
-            _elogios.add(elogio);
-          } else {
-            _elogios.remove(elogio);
-          }
-        });
-      },
-    );
   }
 
   @override
@@ -135,21 +146,24 @@ class _RateServicePageState extends State<RateServicePage> {
         title: Text('Avaliar Serviço'),
         backgroundColor: Colors.yellow[700],
       ),
-      body: _isSubmitting
-          ? Center(child: CircularProgressIndicator()) // Show loader while submitting
+      body: _errorMessage != null
+          ? Center(child: Text(_errorMessage!))
+          : _isSubmitting
+          ? Center(child: CircularProgressIndicator())
           : Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Avalie com estrelas:'),
-            SizedBox(height: 10),
             Row(
               children: List.generate(5, (index) {
                 return IconButton(
                   icon: Icon(
                     Icons.star,
-                    color: index < _rating ? Colors.yellow[700] : Colors.grey,
+                    color: index < _rating
+                        ? Colors.yellow[700]
+                        : Colors.grey,
                   ),
                   onPressed: () {
                     setState(() {
@@ -164,7 +178,9 @@ class _RateServicePageState extends State<RateServicePage> {
             Wrap(
               spacing: 10.0,
               runSpacing: 5.0,
-              children: elogioOptions.map((elogio) => _buildElogioOption(elogio)).toList(),
+              children: elogioOptions
+                  .map((elogio) => _buildElogioOption(elogio))
+                  .toList(),
             ),
             Spacer(),
             ElevatedButton(
@@ -180,5 +196,24 @@ class _RateServicePageState extends State<RateServicePage> {
       ),
     );
   }
+
+  Widget _buildElogioOption(String elogio) {
+    return ChoiceChip(
+      label: Text(elogio),
+      selected: _elogios.contains(elogio),
+      onSelected: (selected) {
+        setState(() {
+          if (selected) {
+            _elogios.add(elogio);
+          } else {
+            _elogios.remove(elogio);
+          }
+        });
+      },
+    );
+  }
 }
+
+
+
 

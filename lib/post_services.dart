@@ -14,7 +14,6 @@ class _PostServiceState extends State<PostService> {
   String _serviceType = '';
   String _salaryRange = '';
   List<DateTime> _availableDates = [];
-  String _whatsappContact = '';
   String _cep = '';
   String _fullName = '';
   String _userRole = '';
@@ -81,10 +80,10 @@ class _PostServiceState extends State<PostService> {
             'serviceType': _serviceType,
             'salaryRange': _salaryRange,
             'availableDates': _availableDates.map((e) => e.toIso8601String()).toList(),
-            'whatsappContact': _whatsappContact,
             'location': finalLocation,
             'providerId': user.uid,
             'status': 'pending', // Service status is pending upon posting
+            'createdAt': Timestamp.now(),
           });
 
           ScaffoldMessenger.of(context).showSnackBar(
@@ -240,4 +239,3 @@ class _PostServiceState extends State<PostService> {
     );
   }
 }
-
