@@ -107,11 +107,12 @@ class _OngoingServicesPageState extends State<OngoingServicesPage> {
   // Function to complete the service and move it to 'completed_services' collection
   Future<void> _completeService(String requestId, Map<String, dynamic> serviceData) async {
     try {
-      // Add the service to the 'completed_services' collection
+      // Add the service to the 'completed_services' collection with 'needsRating' field
       await FirebaseFirestore.instance.collection('completed_services').add({
         ...serviceData,
         'status': 'completed',
         'completedAt': Timestamp.now(),
+        'needsRating': true, // Add this field to indicate the service requires a rating
       });
 
       // Remove the service from 'service_requests'
@@ -128,5 +129,3 @@ class _OngoingServicesPageState extends State<OngoingServicesPage> {
     }
   }
 }
-
-

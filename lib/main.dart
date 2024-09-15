@@ -5,6 +5,7 @@ import 'package:aplicativo_praja/service_details_page.dart';
 import 'package:aplicativo_praja/service_requests.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
 import 'blank_page_1.dart';
 import 'blank_page_2.dart';
 import 'login_page.dart';
@@ -30,6 +31,18 @@ void main() async {
       appId: "1:1033446868426:web:6d599929640187fa8ffb33",
     ),
   );
+
+  // Enable Firestore logging
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,  // Enables persistence
+    host: 'firestore.googleapis.com',
+    sslEnabled: true,
+    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+  );
+
+  // Enable detailed logging globally
+  FirebaseFirestore.setLoggingEnabled(true); // Correct usage of the static method
+
   runApp(MyApp());
 }
 
@@ -94,3 +107,4 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+

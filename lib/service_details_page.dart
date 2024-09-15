@@ -18,12 +18,16 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
   Map<String, dynamic>? _serviceData;
   String? _providerImageUrl;
   String? _providerName;
+  double _providerRating = 0.0;
+  int _completedServices = 0;
+  int _totalRatings = 0;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _fetchServiceDetails();
+    _fetchProviderStats(); // Fetch provider rating, completed services, and total ratings
   }
 
   // Fetch the service details from Firestore and provider's profile picture and name
@@ -65,6 +69,55 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     } catch (e) {
       print('Error fetching service details: $e');
     }
+  }
+
+  // Fetch provider rating, completed services, and total ratings from Firestore
+  Future<void> _fetchProviderStats() async {
+    try {
+      final serviceSnapshot = await FirebaseFirestore.instance
+          .collection('services')
+          .doc(widget.docId)
+          .get();
+
+      if (serviceSnapshot.exists) {
+        final serviceData = serviceSnapshot.data() as Map<String, dynamic>;
+        final providerId = serviceData['providerId'];
+
+        // Fetch the provider's statistics
+        final providerSnapshot = await FirebaseFirestore.instance
+            .collection('prestadores_de_servico')
+            .doc(providerId)
+            .get();
+
+        if (providerSnapshot.exists) {
+          final providerData = providerSnapshot.data() as Map<String, dynamic>;
+          setState(() {
+            _providerRating = providerData['averageRating'] ?? 0.0;
+            _completedServices = providerData['completedServices'] ?? 0;
+          });
+        }
+
+        // Fetch total ratings
+        final ratingsSnapshot = await FirebaseFirestore.instance
+            .collection('ratings')
+            .where('providerId', isEqualTo: providerId)
+            .get();
+
+        setState(() {
+          _totalRatings = ratingsSnapshot.docs.length;
+        });
+      }
+    } catch (e) {
+      print('Error fetching provider stats: $e');
+    }
+  }
+
+  // Format the available dates
+  String _formatAvailableDates(List<dynamic>? availableDates) {
+    if (availableDates == null || availableDates.isEmpty) return 'Não disponível';
+    DateTime startDate = DateTime.parse(availableDates.first);
+    DateTime endDate = DateTime.parse(availableDates.last);
+    return '${DateFormat('dd/MM/yyyy').format(startDate)} - ${DateFormat('dd/MM/yyyy').format(endDate)}';
   }
 
   // Function to start the chat and create the chat room
@@ -175,13 +228,35 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     }
   }
 
+  // Widget to display provider's statistics
+  Widget _buildProviderStats() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _buildStatItem(Icons.star, 'Avaliação', _providerRating.toStringAsFixed(1)),
+        _buildStatItem(Icons.task, 'Serviços', _completedServices.toString()),
+        _buildStatItem(Icons.thumb_up, 'Avaliações', _totalRatings.toString()),
+      ],
+    );
+  }
 
-  // Format the available dates
-  String _formatAvailableDates(List<dynamic>? availableDates) {
-    if (availableDates == null || availableDates.isEmpty) return 'Não disponível';
-    DateTime startDate = DateTime.parse(availableDates.first);
-    DateTime endDate = DateTime.parse(availableDates.last);
-    return '${DateFormat('dd/MM/yyyy').format(startDate)} - ${DateFormat('dd/MM/yyyy').format(endDate)}';
+  // Helper widget to build each stat item
+  Widget _buildStatItem(IconData icon, String label, String value) {
+    return Column(
+      children: [
+        Icon(icon, color: Colors.yellow[700]),
+        SizedBox(height: 5),
+        Text(
+          value,
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        SizedBox(height: 5),
+        Text(
+          label,
+          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+        ),
+      ],
+    );
   }
 
   @override
@@ -219,6 +294,10 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
+
+              // Provider statistics: rating, completed services, total ratings
+              SizedBox(height: 10),
+              _buildProviderStats(),
 
               SizedBox(height: 20),
               Text(

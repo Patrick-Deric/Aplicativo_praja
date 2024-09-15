@@ -22,9 +22,9 @@ class _ProfilePrestadorState extends State<ProfilePrestador> {
   String _cep = '';
   String _rua = '';
   String _numero = '';
-  String _jobRole = '';
-  double _averageRating = 0.0; // Renamed to averageRating for clarity
-  int _completedServices = 0; // Track completed services
+  double _averageRating = 0.0;
+  int _completedServices = 0;
+  int _totalRatings = 0; // Total number of ratings
 
   bool _isEditing = false;
 
@@ -33,6 +33,8 @@ class _ProfilePrestadorState extends State<ProfilePrestador> {
     super.initState();
     _user = _auth.currentUser;
     _loadUserProfile();
+    _loadProviderRatings();
+    _loadCompletedServices();
   }
 
   Future<void> _loadUserProfile() async {
@@ -42,7 +44,6 @@ class _ProfilePrestadorState extends State<ProfilePrestador> {
           .doc(_user!.uid)
           .get();
 
-      // Safely cast doc.data() to Map<String, dynamic> and check for null
       final userData = doc.data() as Map<String, dynamic>?;
 
       if (userData != null) {
@@ -53,51 +54,73 @@ class _ProfilePrestadorState extends State<ProfilePrestador> {
           _cep = userData['cep'] ?? 'CEP não disponível';
           _rua = userData['rua'] ?? 'Rua não disponível';
           _numero = userData['numero'] ?? 'Número não disponível';
-          _jobRole = userData['jobRole'] ?? 'Profissão não disponível';
-          _averageRating = userData['averageRating'] ?? 0.0; // Fetch average rating
-          _completedServices = userData['completedServices'] ?? 0; // Fetch completed services
 
-          // Check if 'profilePictureUrl' exists in the userData
-          _imageUrl = userData.containsKey('profilePictureUrl')
-              ? userData['profilePictureUrl']
-              : null;
+          _imageUrl = userData['profilePictureUrl'] ?? null;
         });
       }
     }
   }
 
+  Future<void> _loadProviderRatings() async {
+    if (_user != null) {
+      QuerySnapshot ratingsSnapshot = await FirebaseFirestore.instance
+          .collection('ratings')
+          .where('providerId', isEqualTo: _user!.uid)
+          .get();
+
+      int totalRatings = ratingsSnapshot.docs.length;
+      int sumRatings = ratingsSnapshot.docs.fold(
+        0,
+            (previousValue, doc) => previousValue + (doc['rating'] as int),
+      );
+
+      double averageRating = totalRatings > 0 ? sumRatings / totalRatings : 0.0;
+
+      setState(() {
+        _averageRating = averageRating;
+        _totalRatings = totalRatings;
+      });
+    }
+  }
+
+  Future<void> _loadCompletedServices() async {
+    if (_user != null) {
+      QuerySnapshot completedServicesSnapshot = await FirebaseFirestore.instance
+          .collection('completed_services')
+          .where('providerId', isEqualTo: _user!.uid)
+          .get();
+
+      int completedServices = completedServicesSnapshot.docs.length;
+
+      setState(() {
+        _completedServices = completedServices;
+      });
+    }
+  }
+
   Future<void> _pickImage() async {
-    print("Image picker triggered");
     final ImagePicker _picker = ImagePicker();
     final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
 
     if (pickedFile != null) {
-      print("Image selected: ${pickedFile.path}");
       setState(() {
         _image = File(pickedFile.path);
       });
       await _uploadImage();
-    } else {
-      print("No image selected");
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Nenhuma imagem selecionada')));
     }
   }
 
   Future<void> _uploadImage() async {
     if (_image != null && _user != null) {
       try {
-        print("Uploading image...");
         final storageRef = FirebaseStorage.instance
             .ref()
             .child('profile_pictures')
             .child('${_user!.uid}.jpg');
 
         await storageRef.putFile(_image!);
-        print("Image uploaded successfully");
 
         String imageUrl = await storageRef.getDownloadURL();
-        print("Image URL: $imageUrl");
 
         setState(() {
           _imageUrl = imageUrl;
@@ -107,21 +130,13 @@ class _ProfilePrestadorState extends State<ProfilePrestador> {
             .collection('prestadores_de_servico')
             .doc(_user!.uid)
             .update({'profilePictureUrl': imageUrl});
-
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Imagem enviada com sucesso!')));
       } catch (e) {
         print("Error uploading image: $e");
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Erro ao enviar a imagem')));
       }
-    } else {
-      print("No image selected or user is null");
     }
   }
 
   Future<void> _saveProfile() async {
-    print("Saving profile...");
     if (_user != null) {
       await FirebaseFirestore.instance
           .collection('prestadores_de_servico')
@@ -131,9 +146,7 @@ class _ProfilePrestadorState extends State<ProfilePrestador> {
         'cep': _cep,
         'rua': _rua,
         'numero': _numero,
-        'jobRole': _jobRole,
       });
-      print("Profile saved successfully");
       setState(() {
         _isEditing = false;
       });
@@ -183,8 +196,8 @@ class _ProfilePrestadorState extends State<ProfilePrestador> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text('Perfil do Prestador', style: TextStyle(color: Colors.black),),
-        backgroundColor: Colors.yellow, // Change as per your theme
+        title: Text('Perfil do Prestador', style: TextStyle(color: Colors.black)),
+        backgroundColor: Colors.yellow,
         actions: [
           IconButton(
             icon: Icon(_isEditing ? Icons.save : Icons.edit),
@@ -204,14 +217,13 @@ class _ProfilePrestadorState extends State<ProfilePrestador> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // Profile Picture
             Stack(
               children: [
                 CircleAvatar(
                   radius: 60,
                   backgroundImage: _imageUrl != null
                       ? NetworkImage(_imageUrl!)
-                      : AssetImage('assets/placeholder.png') as ImageProvider,
+                      : AssetImage('assets/anon.png') as ImageProvider,
                 ),
                 Positioned(
                   bottom: 0,
@@ -224,12 +236,47 @@ class _ProfilePrestadorState extends State<ProfilePrestador> {
               ],
             ),
             SizedBox(height: 20),
-
-            // User info and edit options
             Text(
               _fullName,
-              style: TextStyle(
-                  fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black),
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black),
+            ),
+            SizedBox(height: 20),
+
+            // Row for Rating, Completed Services, and Total Ratings
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.star, color: Colors.yellow),
+                    SizedBox(width: 5),
+                    Text(
+                      _averageRating.toStringAsFixed(1),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    Icon(Icons.check_circle_outline, color: Colors.green),
+                    SizedBox(width: 5),
+                    Text(
+                      '$_completedServices Concluídos',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    Icon(Icons.rate_review, color: Colors.grey),
+                    SizedBox(width: 5),
+                    Text(
+                      '$_totalRatings Avaliações',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ],
             ),
             SizedBox(height: 20),
 
@@ -270,73 +317,15 @@ class _ProfilePrestadorState extends State<ProfilePrestador> {
               value: _numero,
               onChanged: (value) => _numero = value,
             ),
-            _buildProfileField(
-              icon: Icons.work,
-              label: 'Profissão',
-              value: _jobRole,
-              onChanged: (value) => _jobRole = value,
-            ),
-            _buildProfileField(
-              icon: Icons.lock,
-              label: 'Senha',
-              value: '******',
-              onChanged: (value) => {}, // Password cannot be updated here
-              isPassword: true,
-            ),
 
-            // Rating and Completed Services display
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                Column(
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.star, color: Colors.yellow),
-                        SizedBox(width: 10),
-                        Text(
-                          'Avaliação:',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        SizedBox(width: 10),
-                        Text(
-                          _averageRating.toStringAsFixed(1),
-                          style: TextStyle(fontSize: 24, color: Colors.yellow),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        Icon(Icons.check_circle_outline, color: Colors.green),
-                        SizedBox(width: 10),
-                        Text(
-                          'Serviços Concluídos:',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        SizedBox(width: 10),
-                        Text(
-                          _completedServices.toString(),
-                          style: TextStyle(fontSize: 24, color: Colors.green),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
-            ),
-
-            // Edit button
-            SizedBox(height: 20),
+            // Save button
             ElevatedButton(
               onPressed: _isEditing ? _saveProfile : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.yellow,
                 padding: EdgeInsets.symmetric(vertical: 16.0),
               ),
-              child: Text(
-                'Salvar Alterações',
-                style: TextStyle(fontSize: 16),
-              ),
+              child: Text('Salvar Alterações', style: TextStyle(fontSize: 16)),
             ),
           ],
         ),
@@ -344,4 +333,5 @@ class _ProfilePrestadorState extends State<ProfilePrestador> {
     );
   }
 }
+
 

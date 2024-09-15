@@ -233,19 +233,20 @@ class _HomePageState extends State<HomePage> {
     return '${startDate.day}/${startDate.month} - ${endDate.day}/${endDate.month}';
   }
 
+  // Function to check for pending ratings
   Future<void> _checkPendingRatings() async {
     final userId = FirebaseAuth.instance.currentUser!.uid;
 
     QuerySnapshot completedServices = await FirebaseFirestore.instance
         .collection('completed_services')
-        .where('needsRating', isEqualTo: true)
+        .where('needsRating', isEqualTo: true) // Check if the service needs a rating
         .where('contratanteId', isEqualTo: userId)
         .limit(5)
         .get();
 
     for (var service in completedServices.docs) {
       String serviceId = service.id;
-      _showRatingDialog(serviceId);
+      _showRatingDialog(serviceId);  // Navigate to the rating page
     }
   }
 
@@ -273,7 +274,7 @@ class _HomePageState extends State<HomePage> {
               radius: 20,
               backgroundImage: _profileImageUrl != null
                   ? NetworkImage(_profileImageUrl!)
-                  : AssetImage('assets/avatar.jpg') as ImageProvider,
+                  : AssetImage('assets/anon.png') as ImageProvider,
             ),
           ],
         ),
@@ -457,4 +458,5 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+
 

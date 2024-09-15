@@ -23,8 +23,6 @@ class _RateServicePageState extends State<RateServicePage> {
     'Muito simpático',
     'Bom trabalho',
     'Muita qualidade em serviço',
-    'Ótimo papo',
-    'Boa rota',
   ];
 
   @override
@@ -70,22 +68,16 @@ class _RateServicePageState extends State<RateServicePage> {
       return;
     }
 
-    // Check if the user is a contratante
-    DocumentSnapshot userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(currentUser.uid)
-        .get();
+    // Immediately pop to go back to the previous page
+    Navigator.of(context).pop(); // Act as a back button
 
-    String role = userDoc['role'];
-    if (role != 'contratante') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Somente contratantes podem enviar avaliações.')),
-      );
-      return;
-    }
-
-    // Proceed with submitting the rating
+    // Submit the rating in the background
     try {
+      setState(() {
+        _isSubmitting = true; // Indicate the form is being submitted
+      });
+
+      // Add rating to the 'ratings' collection
       await FirebaseFirestore.instance.collection('ratings').add({
         'serviceId': widget.serviceId,
         'providerId': _providerId,
@@ -95,47 +87,28 @@ class _RateServicePageState extends State<RateServicePage> {
         'timestamp': Timestamp.now(),
       });
 
-      await FirebaseFirestore.instance.collection('completed_services').doc(widget.serviceId).update({
-        'needsRating': false,
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Obrigado pela sua avaliação!')),
-      );
-
-      Navigator.pop(context);
-    } catch (e) {
-      print('Erro ao enviar a avaliação: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao enviar a avaliação.')),
-      );
-    }
-  }
-
-
-  Future<void> _updateProviderRating() async {
-    try {
+      // Check if the service has already been rated
       QuerySnapshot ratingsSnapshot = await FirebaseFirestore.instance
           .collection('ratings')
-          .where('providerId', isEqualTo: _providerId)
+          .where('serviceId', isEqualTo: widget.serviceId)
           .get();
 
-      int totalRatings = ratingsSnapshot.docs.length;
-      int sumRatings = ratingsSnapshot.docs.fold(
-        0,
-            (previousValue, doc) => previousValue + (doc['rating'] as int),
-      );
-      double averageRating = sumRatings / totalRatings;
-
-      await FirebaseFirestore.instance
-          .collection('prestadores_de_servico')
-          .doc(_providerId)
-          .update({
-        'averageRating': averageRating,
-        'completedServices': totalRatings,
-      });
+      if (ratingsSnapshot.docs.isNotEmpty) {
+        // Update the 'needsRating' field to false in the 'completed_services' collection
+        await FirebaseFirestore.instance
+            .collection('completed_services')
+            .doc(widget.serviceId)
+            .update({
+          'needsRating': false,
+        });
+      }
     } catch (e) {
-      print('Erro ao atualizar a avaliação do prestador: $e');
+      // Log the error but don't show a message to the user
+      print('Erro ao enviar a avaliação: $e');
+    } finally {
+      setState(() {
+        _isSubmitting = false; // Reset the submitting state
+      });
     }
   }
 
@@ -213,7 +186,6 @@ class _RateServicePageState extends State<RateServicePage> {
     );
   }
 }
-
 
 
 
