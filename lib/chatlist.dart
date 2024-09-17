@@ -126,36 +126,6 @@ class _ChatListPageState extends State<ChatListPage> {
           );
         },
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex, // Set the selected index
-        selectedItemColor: Colors.yellow[700],
-        unselectedItemColor: Colors.grey,
-        items: [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.work), label: 'Serviços'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
-        ],
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-
-          if (index == 0) {
-            Navigator.push(context,
-                MaterialPageRoute(builder: (context) => HomePage()));
-            // Navigate to the home page if necessary
-          } else if (index == 1) {
-            Navigator.push(context,
-                MaterialPageRoute(builder: (context) => OngoingServicesContratantePage()));
-          } else if (index == 2) {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => ChatListPage()));
-          } else if (index == 3) {
-            Navigator.push(context,
-                MaterialPageRoute(builder: (context) => ProfileContratantePage()));
-          }
-        },
-      ),
     );
   }
 }

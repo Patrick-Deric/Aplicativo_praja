@@ -124,7 +124,7 @@ class _OngoingServicesPageState extends State<OngoingServicesPage> {
                         ),
                         child: Text(
                           'Concluir Serviço',
-                          style: TextStyle(fontSize: 16),
+                          style: TextStyle(color: Colors.white, fontSize: 16),
                         ),
                       ),
                     ),
@@ -140,7 +140,8 @@ class _OngoingServicesPageState extends State<OngoingServicesPage> {
                         ),
                         child: Text(
                           'Excluir Serviço',
-                          style: TextStyle(fontSize: 16),
+                          style: TextStyle(color: Colors.white, fontSize: 16),
+
                         ),
                       ),
                     ),

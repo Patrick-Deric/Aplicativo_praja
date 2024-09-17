@@ -46,4 +46,4 @@ flutter:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: "AppIcon"
-  image_path: "images/pj_icon.png"
+  image_path: "images/workerlogo.png"

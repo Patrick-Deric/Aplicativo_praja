@@ -1,4 +1,4 @@
-import 'package:aplicativo_praja/ongoing_services.dart';
+import 'package:aplicativo_praja/ongoing_services_contratante.dart';
 import 'package:aplicativo_praja/profile_contratante.dart';
 import 'package:aplicativo_praja/rate_service.dart';
 import 'package:aplicativo_praja/service_details_page.dart';
@@ -22,6 +22,7 @@ class _HomePageState extends State<HomePage> {
   Position? _currentPosition;
   final double searchRadiusKm = 10.0;
   List<Map<String, dynamic>> _services = [];
+  List<Map<String, dynamic>> _filteredServices = [];
   bool _locationPermissionGranted = false;
   bool _locationServiceEnabled = false;
   GoogleMapController? _mapController;
@@ -31,6 +32,16 @@ class _HomePageState extends State<HomePage> {
   String? _profileImageUrl;
   User? _user;
 
+  // Selected category for filtering
+  String _selectedCategory = "All";
+
+  // List of job categories
+  final List<String> _categories = [
+    "All", "Pintor", "Eletricista", "Encanador", "Faxineira", "Cuidadora",
+    "Pedreiro", "Marceneiro", "Motorista", "Jardineiro", "Manicure",
+    "Costureira", "Técnico Informática"
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -38,7 +49,7 @@ class _HomePageState extends State<HomePage> {
     _fetchUserProfile();
     _checkInternetConnection();
     _checkLocationPermissions();
-    _checkPendingRatings(); // Check for services that need ratings
+    _checkPendingRatings();
   }
 
   Future<void> _fetchUserProfile() async {
@@ -60,6 +71,7 @@ class _HomePageState extends State<HomePage> {
       }
     }
   }
+
 
   Future<void> _logoff() async {
     final bool shouldLogoff = await _showLogoffConfirmation();
@@ -165,7 +177,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadNearbyProviders() async {
-    if (_currentPosition == null || _loadingServices) return;
+    if (_currentPosition == null ||
+
+        _loadingServices) return;
 
     setState(() {
       _loadingServices = true;
@@ -197,12 +211,15 @@ class _HomePageState extends State<HomePage> {
           List<String> latLng = serviceLocation.split(',');
           double latitude = double.parse(latLng[0]);
           double longitude = double.parse(latLng[1]);
-
           _addServiceMarker(latitude, longitude, doc);
         } else {
           print("Invalid or missing location data for service: ${doc.id}");
         }
       }
+
+      // Apply the initial category filter (default is "All")
+      _applyCategoryFilter();
+
     } catch (e) {
       print('Error loading services: $e');
     } finally {
@@ -233,18 +250,23 @@ class _HomePageState extends State<HomePage> {
             'distance': distanceInKm,
             'docId': doc.id,
             'providerId': data['providerId'],
+            'latitude': latitude,
+            'longitude': longitude,
           });
 
-          _markers.add(
-            Marker(
-              markerId: MarkerId(doc.id),
-              position: LatLng(latitude, longitude),
-              infoWindow: InfoWindow(
-                title: data['serviceType'] ?? 'Unknown',
-                snippet: 'Distância: ${distanceInKm.toStringAsFixed(2)} km',
+          // Add marker based on filtered services
+          if (_selectedCategory == "All" || data['serviceType'] == _selectedCategory) {
+            _markers.add(
+              Marker(
+                markerId: MarkerId(doc.id),
+                position: LatLng(latitude, longitude),
+                infoWindow: InfoWindow(
+                  title: data['serviceType'] ?? 'Unknown',
+                  snippet: 'Distância: ${distanceInKm.toStringAsFixed(2)} km',
+                ),
               ),
-            ),
-          );
+            );
+          }
         });
       }
     }
@@ -262,14 +284,14 @@ class _HomePageState extends State<HomePage> {
 
     QuerySnapshot completedServices = await FirebaseFirestore.instance
         .collection('completed_services')
-        .where('needsRating', isEqualTo: true) // Check if the service needs a rating
+        .where('needsRating', isEqualTo: true)
         .where('contratanteId', isEqualTo: userId)
         .limit(5)
         .get();
 
     for (var service in completedServices.docs) {
       String serviceId = service.id;
-      _showRatingDialog(serviceId); // Navigate to the rating page
+      _showRatingDialog(serviceId);
     }
   }
 
@@ -282,12 +304,59 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // Apply filter based on the selected category
+  void _applyCategoryFilter() {
+    if (_selectedCategory == "All") {
+      setState(() {
+        _filteredServices = List.from(_services); // Show all services
+        _markers.clear();
+        _services.forEach((service) {
+          _addServiceMarkerFromService(service);  // Add all markers back to the map
+        });
+      });
+    } else {
+      setState(() {
+        _filteredServices = _services.where((service) {
+          return service['serviceType'] == _selectedCategory;
+        }).toList();
+
+        // Filter the markers
+        _markers.clear();
+        _filteredServices.forEach((service) {
+          _addServiceMarkerFromService(service);
+        });
+      });
+    }
+  }
+
+  // Helper to add markers from the filtered services
+  void _addServiceMarkerFromService(Map<String, dynamic> service) {
+    final double latitude = service['latitude'];
+    final double longitude = service['longitude'];
+    final String serviceType = service['serviceType'] ?? 'Unknown';
+    final double distance = service['distance'] ?? 0.0;
+    final String docId = service['docId'];
+
+    _markers
+
+        .add(
+      Marker(
+        markerId: MarkerId(docId),
+        position: LatLng(latitude, longitude),
+        infoWindow: InfoWindow(
+          title: serviceType,
+          snippet: 'Distância: ${distance.toStringAsFixed(2)} km',
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.yellow[50],
       appBar: AppBar(
-        automaticallyImplyLeading: false, // Remove back arrow
+        automaticallyImplyLeading: false,
         backgroundColor: Colors.yellow[700],
         elevation: 0,
         title: Row(
@@ -323,11 +392,11 @@ class _HomePageState extends State<HomePage> {
                 width: double.infinity,
                 height: 250,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20), // Rounded borders for the map window
+                  borderRadius: BorderRadius.circular(20),
                   color: Colors.yellow[100],
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20), // Rounded map corners
+                  borderRadius: BorderRadius.circular(20),
                   child: Stack(
                     children: [
                       if (_currentPosition != null && _locationPermissionGranted)
@@ -360,16 +429,57 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             SizedBox(height: 20),
+            // Job categories horizontal ListView
+            Container(
+              height: 80,
+              padding: EdgeInsets.symmetric(horizontal: 16.0),
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _categories.length,
+                itemBuilder: (context, index) {
+                  final category = _categories[index];
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedCategory = category;
+                        _applyCategoryFilter();
+                      });
+                    },
+                    child: Container(
+                      margin: EdgeInsets.only(right: 16),
+                      padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: _selectedCategory == category ? Colors.yellow[700] : Colors.grey[200],
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(height: 8),
+                          Text(
+                            category,
+                            style: TextStyle(
+                              color: _selectedCategory == category ? Colors.white : Colors.black,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: _services.isEmpty
+              child: _filteredServices.isEmpty
                   ? Center(child: Text('Nenhum serviço encontrado'))
                   : ListView.builder(
                 shrinkWrap: true,
                 physics: NeverScrollableScrollPhysics(),
-                itemCount: _services.length,
+                itemCount: _filteredServices.length,
                 itemBuilder: (context, index) {
-                  final service = _services[index];
+                  final service = _filteredServices[index];
                   return _buildServiceCard(
                     context,
                     serviceName: service['serviceType'] ?? 'Serviço',
@@ -419,53 +529,53 @@ class _HomePageState extends State<HomePage> {
         );
       },
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.2),
-              spreadRadius: 3,
-              blurRadius: 10,
-              offset: Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              Text(
-                serviceName,
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 5),
-              Text(
-                serviceDescription,
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-              ),
-              SizedBox(height: 5),
-              Text(
-                'Pretensão: $salaryRange por hora',
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-              ),
-              SizedBox(height: 10),
-              Text(
-                'Distância: ${distance.toStringAsFixed(2)} km',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.yellow[700]),
-              ),
-              SizedBox(height: 5),
-              Text(
-                'Pressione para mais detalhes',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+          margin: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+          BoxShadow(
+          color: Colors.grey.withOpacity(0.2),
+          spreadRadius: 3,
+          blurRadius: 10,
+          offset: Offset(0, 3),
 
+
+    ),
+    ],
+    ),
+    child: Padding(
+    padding: const EdgeInsets.all(16.0),
+    child: Column(
+    mainAxisAlignment: MainAxisAlignment.start,
+    children: [
+    Text(
+    serviceName,
+    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+    ),
+    SizedBox(height: 5),
+    Text(
+    serviceDescription,
+    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+    ),
+    SizedBox(height: 5),
+    Text(
+    'Pretensão: $salaryRange por hora',
+    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+    ),
+    SizedBox(height: 10),
+    Text(
+    'Distância: ${distance.toStringAsFixed(2)} km',
+    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.yellow[700]),
+    ),
+    SizedBox(height: 5),
+    Text(
+    'Pressione para mais detalhes',
+    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+    ),
+    ],
+    ),
+    ),
+    ));
+    }
+}
