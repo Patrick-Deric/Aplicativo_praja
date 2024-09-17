@@ -86,9 +86,7 @@ class _PostServiceState extends State<PostService> {
             'createdAt': Timestamp.now(),
           });
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Serviço postado com sucesso!')),
-          );
+          _showConfirmationDialog();
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -143,9 +141,31 @@ class _PostServiceState extends State<PostService> {
     });
   }
 
+  void _showConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Confirmação'),
+          content: Text('Serviço postado com sucesso!'),
+          actions: <Widget>[
+            TextButton(
+              child: Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop();  // Fechar o diálogo
+                Navigator.pushReplacementNamed(context, '/home_prestador');  // Redirecionar para o menu
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text('Postar Serviço', style: TextStyle(color: Colors.black)),
         backgroundColor: Colors.yellow[700],

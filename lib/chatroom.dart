@@ -51,6 +51,9 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   Future<void> _sendMessage() async {
     if (message.isEmpty) return;
 
+    final timestamp = Timestamp.now();
+
+    // Add the message to the 'messages' subcollection in 'chat_rooms'
     await FirebaseFirestore.instance
         .collection('chat_rooms')
         .doc(widget.chatRoomId)
@@ -59,11 +62,35 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       'message': message,
       'senderId': currentUser!.uid,
       'receiverId': widget.providerId,
-      'timestamp': Timestamp.now(),
+      'timestamp': timestamp,
     });
 
+    // Update the chat list for both users (current user and the other user)
+    await _updateChatList(currentUser!.uid, widget.providerId, message, timestamp);
+    await _updateChatList(widget.providerId, currentUser!.uid, message, timestamp);
+
     _messageController.clear();
+    setState(() {
+      message = '';
+    });
   }
+
+  Future<void> _updateChatList(String userId, String otherUserId, String lastMessage, Timestamp timestamp) async {
+    final chatListRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('chat_list')
+        .doc(widget.chatRoomId);
+
+    await chatListRef.set({
+      'chatRoomId': widget.chatRoomId,
+      'lastMessage': lastMessage,
+      'timestamp': timestamp,
+      'providerId': otherUserId == widget.providerId ? widget.providerId : null,
+      'contratanteId': otherUserId == widget.providerId ? null : currentUser!.uid,
+    });
+  }
+
 
   @override
   Widget build(BuildContext context) {

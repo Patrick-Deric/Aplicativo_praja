@@ -203,7 +203,7 @@ class _ServiceRequestsPageState extends State<ServiceRequestsPage> {
                         ),
                         child: Text(
                           'Aceitar Serviço',
-                          style: TextStyle(fontSize: 16),
+                          style: TextStyle(color: Colors.white, fontSize: 16),
                         ),
                       ),
                     ),
@@ -219,7 +219,7 @@ class _ServiceRequestsPageState extends State<ServiceRequestsPage> {
                         ),
                         child: Text(
                           'Ir para o Chat',
-                          style: TextStyle(fontSize: 16),
+                          style: TextStyle(color: Colors.white, fontSize: 16),
                         ),
                       ),
                     ),

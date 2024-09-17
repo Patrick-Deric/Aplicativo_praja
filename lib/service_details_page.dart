@@ -177,7 +177,7 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Confirmação'),
+          title: Text('Entre em contato com o prestador antes de confirmar!'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

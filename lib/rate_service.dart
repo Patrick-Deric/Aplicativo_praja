@@ -116,8 +116,9 @@ class _RateServicePageState extends State<RateServicePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Avaliar Serviço'),
+        title: Text('Avaliar Serviço', style: TextStyle(color: Colors.white, fontSize: 16)) ,
         backgroundColor: Colors.yellow[700],
+
       ),
       body: _errorMessage != null
           ? Center(child: Text(_errorMessage!))
@@ -186,6 +187,5 @@ class _RateServicePageState extends State<RateServicePage> {
     );
   }
 }
-
 
 
