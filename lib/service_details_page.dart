@@ -30,10 +30,8 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     _fetchProviderStats(); // Fetch provider rating, completed services, and total ratings
   }
 
-  // Fetch the service details from Firestore and provider's profile picture and name
   Future<void> _fetchServiceDetails() async {
     try {
-      // Fetch the service details
       DocumentSnapshot serviceSnapshot = await FirebaseFirestore.instance
           .collection('services')
           .doc(widget.docId)
@@ -42,7 +40,6 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
       if (serviceSnapshot.exists) {
         _serviceData = serviceSnapshot.data() as Map<String, dynamic>?;
 
-        // Fetch the provider's profile picture and name
         if (_serviceData != null) {
           String providerId = _serviceData!['providerId'];
           DocumentSnapshot providerSnapshot = await FirebaseFirestore.instance
@@ -71,7 +68,6 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     }
   }
 
-  // Fetch provider rating, completed services, and total ratings from Firestore
   Future<void> _fetchProviderStats() async {
     try {
       final serviceSnapshot = await FirebaseFirestore.instance
@@ -83,7 +79,6 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
         final serviceData = serviceSnapshot.data() as Map<String, dynamic>;
         final providerId = serviceData['providerId'];
 
-        // Fetch the provider's statistics
         final providerSnapshot = await FirebaseFirestore.instance
             .collection('prestadores_de_servico')
             .doc(providerId)
@@ -97,7 +92,6 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
           });
         }
 
-        // Fetch total ratings
         final ratingsSnapshot = await FirebaseFirestore.instance
             .collection('ratings')
             .where('providerId', isEqualTo: providerId)
@@ -112,7 +106,6 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     }
   }
 
-  // Format the available dates
   String _formatAvailableDates(List<dynamic>? availableDates) {
     if (availableDates == null || availableDates.isEmpty) return 'Não disponível';
     DateTime startDate = DateTime.parse(availableDates.first);
@@ -120,12 +113,10 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     return '${DateFormat('dd/MM/yyyy').format(startDate)} - ${DateFormat('dd/MM/yyyy').format(endDate)}';
   }
 
-  // Function to start the chat and create the chat room
   Future<void> _startChat() async {
     final String contratanteId = FirebaseAuth.instance.currentUser!.uid;
     final String providerId = _serviceData!['providerId'];
 
-    // Generate chatRoomId by combining contratanteId and providerId
     String chatRoomId = contratanteId + "_" + providerId;
 
     try {
@@ -135,15 +126,13 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
           .get();
 
       if (!chatRoomSnapshot.exists) {
-        // Create the chat room
         await FirebaseFirestore.instance.collection('chat_rooms').doc(chatRoomId).set({
           'contratanteId': contratanteId,
           'providerId': providerId,
           'createdAt': Timestamp.now(),
-          'users': [contratanteId, providerId],  // Store both users
+          'users': [contratanteId, providerId],
         });
 
-        // Update chat lists for both participants
         await FirebaseFirestore.instance
             .collection('users')
             .doc(contratanteId)
@@ -167,7 +156,6 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
         });
       }
 
-      // Navigate to the chat room
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -183,7 +171,45 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     }
   }
 
-  // Function to request service with confirmation dialog
+  Future<void> _confirmServiceRequest() async {
+    final TextEditingController controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Confirmação'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Digite "confirmar" para requisitar o serviço'),
+              TextField(
+                controller: controller,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () {
+                if (controller.text.toLowerCase() == 'confirmar') {
+                  Navigator.of(context).pop('confirmar');
+                }
+              },
+              child: Text('Confirmar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == 'confirmar') {
+      _requestService();
+    }
+  }
+
   Future<void> _requestService() async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
@@ -193,7 +219,6 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
       return;
     }
 
-    // Check if the current user is a contratante
     DocumentSnapshot userDoc = await FirebaseFirestore.instance
         .collection('users')
         .doc(currentUser.uid)
@@ -207,7 +232,6 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
       return;
     }
 
-    // Proceed with requesting the service
     try {
       await FirebaseFirestore.instance.collection('service_requests').add({
         'serviceId': widget.docId,
@@ -228,7 +252,6 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     }
   }
 
-  // Widget to display provider's statistics
   Widget _buildProviderStats() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -240,7 +263,6 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     );
   }
 
-  // Helper widget to build each stat item
   Widget _buildStatItem(IconData icon, String label, String value) {
     return Column(
       children: [
@@ -248,7 +270,7 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
         SizedBox(height: 5),
         Text(
           value,
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          style: TextStyle(fontSize: 18),
         ),
         SizedBox(height: 5),
         Text(
@@ -263,15 +285,17 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: Text('Detalhes do Serviço')),
+        appBar: AppBar(title: Text('Detalhes do Serviço', style: TextStyle(color: Colors.black))),
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Detalhes do Serviço'),
+        title: Text('Detalhes do Serviço', style: TextStyle(color: Colors.black)),
         backgroundColor: Colors.yellow[700],
+        elevation: 0,
+        iconTheme: IconThemeData(color: Colors.black),
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -279,26 +303,21 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Display provider's profile picture if available
               CircleAvatar(
                 radius: 60,
+                backgroundColor: Colors.grey[300],
                 backgroundImage: _providerImageUrl != null
                     ? NetworkImage(_providerImageUrl!)
                     : AssetImage('assets/anon.png') as ImageProvider,
               ),
               SizedBox(height: 10),
-
-              // Display provider's name
               Text(
                 _providerName ?? 'Nome não disponível',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
-
-              // Provider statistics: rating, completed services, total ratings
               SizedBox(height: 10),
               _buildProviderStats(),
-
               SizedBox(height: 20),
               Text(
                 _serviceData!['serviceType'] ?? 'Tipo de serviço não disponível',
@@ -307,44 +326,40 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
               SizedBox(height: 10),
               Text(
                 'Pretensão Salarial: ${_serviceData!['salaryRange'] ?? 'Não disponível'}',
-                style: TextStyle(fontSize: 18, color: Colors.grey[700]),
+                style: TextStyle(fontSize: 18),
               ),
               SizedBox(height: 10),
               Text(
                 'Datas Disponíveis: ${_formatAvailableDates(_serviceData!['availableDates'])}',
-                style: TextStyle(fontSize: 18, color: Colors.grey[700]),
+                style: TextStyle(fontSize: 18),
               ),
               SizedBox(height: 10),
               Text(
                 'Distância: ${widget.distance.toStringAsFixed(2)} km',
-                style: TextStyle(fontSize: 18, color: Colors.grey[700]),
+                style: TextStyle(fontSize: 18),
               ),
               SizedBox(height: 20),
-
-              // Button to start chat
               ElevatedButton(
-                onPressed: _startChat, // Start chat when pressed
+                onPressed: _startChat,
                 style: ElevatedButton.styleFrom(
                   padding: EdgeInsets.symmetric(vertical: 16.0),
                   backgroundColor: Colors.yellow[700],
                 ),
                 child: Text(
                   'Entrar em contato com o prestador',
-                  style: TextStyle(fontSize: 16),
+                  style: TextStyle(color: Colors.white, fontSize: 16),
                 ),
               ),
-
-              SizedBox(height: 10), // Space between buttons
-
-              // New button to request service with confirmation
+              SizedBox(height: 10),
               ElevatedButton(
-                onPressed: _requestService, // Request service with confirmation dialog
+                onPressed: _confirmServiceRequest,
                 style: ElevatedButton.styleFrom(
                   padding: EdgeInsets.symmetric(vertical: 16.0),
                   backgroundColor: Colors.green[700],
                 ),
                 child: Text(
                   'Requisitar Serviço',
+                  style: TextStyle(color: Colors.white, fontSize: 16),
                 ),
               ),
             ],
@@ -354,4 +369,6 @@ class _ServiceDetailsPageState extends State<ServiceDetailsPage> {
     );
   }
 }
+
+
 

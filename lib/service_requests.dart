@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'chatroom.dart'; // Assuming you have a chatroom page
 
 class ServiceRequestsPage extends StatefulWidget {
   @override
@@ -31,46 +32,71 @@ class _ServiceRequestsPageState extends State<ServiceRequestsPage> {
     }
   }
 
-  // Function to accept a service request and update the service status
-  Future<void> _acceptServiceRequest(String requestId, String serviceId) async {
-    try {
-      // Update the status to 'ongoing' in service_requests
-      await FirebaseFirestore.instance.collection('service_requests').doc(requestId).update({
-        'status': 'ongoing',
-      });
+  // Function to accept a service request with confirmation dialog
+  Future<void> _acceptServiceRequest(String requestId, String serviceId, String chatRoomId) async {
+    bool accept = await _showConfirmationDialog(
+      context,
+      "Aceitar Serviço",
+      "Você deseja aceitar este serviço?",
+    );
 
-      // Update the service in the services collection to mark it as 'ongoing'
-      await FirebaseFirestore.instance.collection('services').doc(serviceId).update({
-        'status': 'ongoing',
-      });
+    if (accept) {
+      try {
+        await FirebaseFirestore.instance.collection('service_requests').doc(requestId).update({
+          'status': 'ongoing',
+        });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Serviço aceito e agora está em andamento!')),
-      );
-    } catch (e) {
-      print('Error accepting service: $e');
+        await FirebaseFirestore.instance.collection('services').doc(serviceId).update({
+          'status': 'ongoing',
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Serviço aceito e agora está em andamento!')),
+        );
+      } catch (e) {
+        print('Error accepting service: $e');
+      }
     }
   }
 
-  // Function to mark a service as completed by the prestador
-  Future<void> _completeServiceRequest(String requestId, String serviceId) async {
-    try {
-      // Update the status to 'completed' in service_requests
-      await FirebaseFirestore.instance.collection('service_requests').doc(requestId).update({
-        'status': 'completed',
-      });
+  // Confirmation dialog
+  Future<bool> _showConfirmationDialog(
+      BuildContext context, String title, String content) async {
+    return await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(content),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('Não'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            child: Text('Sim'),
+          ),
+        ],
+      ),
+    );
+  }
 
-      // Update the service in the services collection to mark it as 'completed'
-      await FirebaseFirestore.instance.collection('services').doc(serviceId).update({
-        'status': 'completed',
-      });
+  // Function to navigate to the chatroom (generating the chatRoomId dynamically)
+  void _navigateToChatRoom(String contratanteId, String providerId, String serviceId) {
+    // Generate the chatRoomId dynamically
+    String chatRoomId = '${contratanteId}_$providerId';
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Serviço finalizado com sucesso!')),
-      );
-    } catch (e) {
-      print('Error completing service: $e');
-    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatRoomPage(
+          chatRoomId: chatRoomId,
+          providerId: providerId,
+          serviceId: serviceId,
+        ),
+      ),
+    );
   }
 
   @override
@@ -126,43 +152,85 @@ class _ServiceRequestsPageState extends State<ServiceRequestsPage> {
     );
   }
 
-  // Function to build a request card widget
+  // Function to build a request card widget with contratante's name and chat button
   Widget _buildRequestCard(BuildContext context, QueryDocumentSnapshot request) {
     String requestId = request.id;
     Timestamp timestamp = request['timestamp'];
     DateTime requestTime = timestamp.toDate();
     String formattedTime = DateFormat('dd/MM/yyyy HH:mm').format(requestTime);
 
-    return Card(
-      margin: EdgeInsets.all(10),
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Solicitação de Serviço',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    String contratanteId = request['contratanteId'];
+    String providerId = FirebaseAuth.instance.currentUser!.uid;
+    String serviceId = request['serviceId'];
+
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance.collection('users').doc(contratanteId).get(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return ListTile(
+            title: Text('Carregando...'),
+          );
+        }
+
+        var contratanteData = snapshot.data!.data() as Map<String, dynamic>;
+        String contratanteName = contratanteData['fullName'] ?? 'Nome não disponível';
+
+        return Card(
+          margin: EdgeInsets.all(10),
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Solicitação de Serviço',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 10),
+                Text('Solicitado em: $formattedTime'),
+                Text('Solicitado por: $contratanteName'),
+                SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          _acceptServiceRequest(requestId, serviceId, '${contratanteId}_$providerId');
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          padding: EdgeInsets.symmetric(vertical: 12.0),
+                        ),
+                        child: Text(
+                          'Aceitar Serviço',
+                          style: TextStyle(fontSize: 16),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          _navigateToChatRoom(contratanteId, providerId, serviceId);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          padding: EdgeInsets.symmetric(vertical: 12.0),
+                        ),
+                        child: Text(
+                          'Ir para o Chat',
+                          style: TextStyle(fontSize: 16),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            SizedBox(height: 10),
-            Text('Solicitado em: $formattedTime'),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                _acceptServiceRequest(requestId, request['serviceId']);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.yellow[700],
-                padding: EdgeInsets.symmetric(vertical: 12.0),
-              ),
-              child: Text(
-                'Realizar Serviço',
-                style: TextStyle(fontSize: 16),
-              ),
-            )
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
+

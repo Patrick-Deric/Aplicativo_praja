@@ -121,7 +121,7 @@ class _RegisterContratantePageState extends State<RegisterContratantePage> {
               SizedBox(height: 20),
               Center(
                 child: Text(
-                  'PJ',
+                  'PraJá',
                   style: TextStyle(
                     fontSize: 50,
                     fontWeight: FontWeight.bold,
@@ -280,11 +280,11 @@ class _RegisterContratantePageState extends State<RegisterContratantePage> {
                         ),
                       ],
                     ),
-                    SizedBox(height: 40),
+                    SizedBox(height: 30),
                     ElevatedButton(
                       onPressed: _register,
                       style: ElevatedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(vertical: 16.0),
+                        padding: EdgeInsets.symmetric(vertical: 16.0, horizontal: 24.0),
                         backgroundColor: Colors.yellow[700],
                       ),
                       child: Text(

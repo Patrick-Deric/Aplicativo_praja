@@ -1,9 +1,13 @@
+import 'package:aplicativo_praja/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'chatlist.dart';
+import 'ongoing_services_contratante.dart';
+import 'profile_contratante.dart'; // Import your other pages as needed
 
 class ProfileContratantePage extends StatefulWidget {
   @override
@@ -16,7 +20,6 @@ class _ProfileContratantePageState extends State<ProfileContratantePage> {
   File? _image;
   String? _imageUrl;
 
-  // TextEditingControllers for each field
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _cepController = TextEditingController();
@@ -24,6 +27,7 @@ class _ProfileContratantePageState extends State<ProfileContratantePage> {
   final TextEditingController _numeroController = TextEditingController();
 
   bool _isEditing = false;
+  int _selectedIndex = 3; // Highlight profile icon in the nav bar
 
   @override
   void initState() {
@@ -39,7 +43,6 @@ class _ProfileContratantePageState extends State<ProfileContratantePage> {
           .doc(_user!.uid)
           .get();
 
-      // Safely cast doc.data() to Map<String, dynamic> and check for null
       final userData = doc.data() as Map<String, dynamic>?;
 
       if (userData != null) {
@@ -49,11 +52,7 @@ class _ProfileContratantePageState extends State<ProfileContratantePage> {
           _cepController.text = userData['cep'] ?? 'CEP não disponível';
           _ruaController.text = userData['rua'] ?? 'Rua não disponível';
           _numeroController.text = userData['numero'] ?? 'Número não disponível';
-
-          // Check if 'profilePictureUrl' exists in the userData
-          _imageUrl = userData.containsKey('profilePictureUrl')
-              ? userData['profilePictureUrl']
-              : null;
+          _imageUrl = userData.containsKey('profilePictureUrl') ? userData['profilePictureUrl'] : null;
         });
       }
     }
@@ -69,8 +68,7 @@ class _ProfileContratantePageState extends State<ProfileContratantePage> {
       });
       await _uploadImage();
     } else {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Nenhuma imagem selecionada')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Nenhuma imagem selecionada')));
     }
   }
 
@@ -160,11 +158,8 @@ class _ProfileContratantePageState extends State<ProfileContratantePage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(
-          'Perfil do Contratante',
-          style: TextStyle(color: Colors.black),
-        ),
-        backgroundColor: Colors.yellow,
+        title: Text('Perfil do Contratante', style: TextStyle(color: Colors.black)),
+        backgroundColor: Colors.yellow[700],
         actions: [
           IconButton(
             icon: Icon(_isEditing ? Icons.save : Icons.edit),
@@ -191,13 +186,13 @@ class _ProfileContratantePageState extends State<ProfileContratantePage> {
                   radius: 60,
                   backgroundImage: _imageUrl != null
                       ? NetworkImage(_imageUrl!)
-                      : AssetImage('assets/avatar.jpg') as ImageProvider,
+                      : AssetImage('assets/anon.png') as ImageProvider,
                 ),
                 Positioned(
                   bottom: 0,
                   right: 0,
                   child: IconButton(
-                    icon: Icon(Icons.camera_alt, color: Colors.grey),
+                    icon: Icon(Icons.camera_alt, color: Colors.black),
                     onPressed: _pickImage,
                   ),
                 ),
@@ -233,6 +228,35 @@ class _ProfileContratantePageState extends State<ProfileContratantePage> {
             ),
           ],
         ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,  // Highlight the profile icon
+        selectedItemColor: Colors.yellow[700],
+        unselectedItemColor: Colors.grey,
+        items: [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.work), label: 'Serviços'),
+          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
+        ],
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+
+          if (index == 0) {
+            Navigator.push(context,
+                MaterialPageRoute(builder: (context) => HomePage()));
+            // Navigate to Home
+          } else if (index == 1) {
+            Navigator.push(context,
+                MaterialPageRoute(builder: (context) => OngoingServicesContratantePage()));
+          } else if (index == 2) {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => ChatListPage()));
+          } else if (index == 3) {
+            // Stay on the profile page
+          }
+        },
       ),
     );
   }

@@ -10,7 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
-
 import 'chatlist.dart';
 import 'ongoing_services_contratante.dart';
 
@@ -39,7 +38,7 @@ class _HomePageState extends State<HomePage> {
     _fetchUserProfile();
     _checkInternetConnection();
     _checkLocationPermissions();
-    _checkPendingRatings();  // Check for services that need ratings
+    _checkPendingRatings(); // Check for services that need ratings
   }
 
   Future<void> _fetchUserProfile() async {
@@ -63,11 +62,36 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _logoff() async {
-    await FirebaseAuth.instance.signOut();
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => LoginPage()),
-    );
+    final bool shouldLogoff = await _showLogoffConfirmation();
+    if (shouldLogoff) {
+      await FirebaseAuth.instance.signOut();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => LoginPage()),
+      );
+    }
+  }
+
+  Future<bool> _showLogoffConfirmation() async {
+    return await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Tem certeza?'),
+          content: Text('Deseja realmente sair da sua conta?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text('Sair'),
+            ),
+          ],
+        );
+      },
+    ) ?? false;
   }
 
   Future<void> _checkInternetConnection() async {
@@ -233,7 +257,6 @@ class _HomePageState extends State<HomePage> {
     return '${startDate.day}/${startDate.month} - ${endDate.day}/${endDate.month}';
   }
 
-  // Function to check for pending ratings
   Future<void> _checkPendingRatings() async {
     final userId = FirebaseAuth.instance.currentUser!.uid;
 
@@ -246,7 +269,7 @@ class _HomePageState extends State<HomePage> {
 
     for (var service in completedServices.docs) {
       String serviceId = service.id;
-      _showRatingDialog(serviceId);  // Navigate to the rating page
+      _showRatingDialog(serviceId); // Navigate to the rating page
     }
   }
 
@@ -264,11 +287,12 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: Colors.yellow[50],
       appBar: AppBar(
+        automaticallyImplyLeading: false, // Remove back arrow
         backgroundColor: Colors.yellow[700],
         elevation: 0,
         title: Row(
           children: [
-            Text('PJ', style: TextStyle(color: Colors.white)),
+            Text('PraJá', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
             Spacer(),
             CircleAvatar(
               radius: 20,
@@ -299,36 +323,39 @@ class _HomePageState extends State<HomePage> {
                 width: double.infinity,
                 height: 250,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(20), // Rounded borders for the map window
                   color: Colors.yellow[100],
                 ),
-                child: Stack(
-                  children: [
-                    if (_currentPosition != null && _locationPermissionGranted)
-                      GoogleMap(
-                        initialCameraPosition: CameraPosition(
-                          target: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-                          zoom: 12,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20), // Rounded map corners
+                  child: Stack(
+                    children: [
+                      if (_currentPosition != null && _locationPermissionGranted)
+                        GoogleMap(
+                          initialCameraPosition: CameraPosition(
+                            target: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+                            zoom: 12,
+                          ),
+                          markers: _markers,
+                          myLocationEnabled: true,
+                          myLocationButtonEnabled: false,
                         ),
-                        markers: _markers,
-                        myLocationEnabled: true,
-                        myLocationButtonEnabled: false,
-                      ),
-                    if (!_locationPermissionGranted)
-                      Center(
-                        child: Text(
-                          'Por favor, permita o acesso à localização para ver o mapa.',
-                          style: TextStyle(color: Colors.red),
+                      if (!_locationPermissionGranted)
+                        Center(
+                          child: Text(
+                            'Por favor, permita o acesso à localização para ver o mapa.',
+                            style: TextStyle(color: Colors.red),
+                          ),
                         ),
-                      ),
-                    if (!_locationServiceEnabled)
-                      Center(
-                        child: Text(
-                          'Ative os serviços de localização para usar o mapa.',
-                          style: TextStyle(color: Colors.red),
+                      if (!_locationServiceEnabled)
+                        Center(
+                          child: Text(
+                            'Ative os serviços de localização para usar o mapa.',
+                            style: TextStyle(color: Colors.red),
+                          ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -337,15 +364,9 @@ class _HomePageState extends State<HomePage> {
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: _services.isEmpty
                   ? Center(child: Text('Nenhum serviço encontrado'))
-                  : GridView.builder(
+                  : ListView.builder(
                 shrinkWrap: true,
                 physics: NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 16,
-                  crossAxisSpacing: 16,
-                  childAspectRatio: 0.6,
-                ),
                 itemCount: _services.length,
                 itemBuilder: (context, index) {
                   final service = _services[index];
@@ -398,6 +419,7 @@ class _HomePageState extends State<HomePage> {
         );
       },
       child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -415,18 +437,6 @@ class _HomePageState extends State<HomePage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(15),
-                    image: DecorationImage(
-                      image: AssetImage('assets/service.jpg'),
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(height: 10),
               Text(
                 serviceName,
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -458,5 +468,4 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
-
 

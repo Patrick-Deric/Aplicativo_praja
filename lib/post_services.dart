@@ -17,7 +17,7 @@ class _PostServiceState extends State<PostService> {
   String _cep = '';
   String _fullName = '';
   String _userRole = '';
-  String _selectedLocation = ''; // CEP or Current Location
+  String _selectedLocation = '';
   bool _useCurrentLocation = false;
   Position? _currentPosition;
 
@@ -82,7 +82,7 @@ class _PostServiceState extends State<PostService> {
             'availableDates': _availableDates.map((e) => e.toIso8601String()).toList(),
             'location': finalLocation,
             'providerId': user.uid,
-            'status': 'pending', // Service status is pending upon posting
+            'status': 'pending',
             'createdAt': Timestamp.now(),
           });
 
@@ -116,6 +116,23 @@ class _PostServiceState extends State<PostService> {
       context: context,
       firstDate: DateTime.now(),
       lastDate: DateTime(DateTime.now().year + 1),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: Colors.yellow[700]!,
+              onPrimary: Colors.black,
+              surface: Colors.yellow[200]!,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.black,
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
     if (result != null) {
       selectedDates.add(result.start);
@@ -143,6 +160,7 @@ class _PostServiceState extends State<PostService> {
               DropdownButtonFormField<String>(
                 decoration: InputDecoration(
                   labelText: 'Tipo de Serviço',
+                  labelStyle: TextStyle(fontSize: 16),
                   border: OutlineInputBorder(),
                   filled: true,
                   fillColor: Colors.white,
@@ -169,7 +187,8 @@ class _PostServiceState extends State<PostService> {
               SizedBox(height: 20),
               DropdownButtonFormField<String>(
                 decoration: InputDecoration(
-                  labelText: 'Pretensão Salarial',
+                  labelText: 'Pretensão Salarial (Por Hora)',
+                  labelStyle: TextStyle(fontSize: 16),
                   border: OutlineInputBorder(),
                   filled: true,
                   fillColor: Colors.white,
@@ -195,12 +214,13 @@ class _PostServiceState extends State<PostService> {
               ),
               SizedBox(height: 20),
               ListTile(
-                title: Text('Dias Disponíveis'),
+                title: Text('Dias Disponíveis', style: TextStyle(fontSize: 16)),
                 subtitle: _availableDates.isNotEmpty
                     ? Text(
                   'De ${DateFormat('dd/MM/yyyy').format(_availableDates.first)} até ${DateFormat('dd/MM/yyyy').format(_availableDates.last)}',
+                  style: TextStyle(fontSize: 14),
                 )
-                    : Text('Nenhuma data selecionada'),
+                    : Text('Nenhuma data selecionada', style: TextStyle(fontSize: 14)),
                 trailing: IconButton(
                   icon: Icon(Icons.calendar_today),
                   onPressed: _selectAvailabilityDates,
@@ -208,7 +228,7 @@ class _PostServiceState extends State<PostService> {
               ),
               SizedBox(height: 20),
               SwitchListTile(
-                title: Text('Usar localização atual'),
+                title: Text('Usar localização atual', style: TextStyle(fontSize: 16)),
                 value: _useCurrentLocation,
                 onChanged: (bool value) async {
                   if (value) {
@@ -229,7 +249,7 @@ class _PostServiceState extends State<PostService> {
                 ),
                 child: Text(
                   'Postar Serviço',
-                  style: TextStyle(fontSize: 16),
+                  style: TextStyle(color: Colors.white, fontSize: 16),
                 ),
               ),
             ],

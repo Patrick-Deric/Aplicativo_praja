@@ -54,7 +54,6 @@ class _ProfilePrestadorState extends State<ProfilePrestador> {
           _cep = userData['cep'] ?? 'CEP não disponível';
           _rua = userData['rua'] ?? 'Rua não disponível';
           _numero = userData['numero'] ?? 'Número não disponível';
-
           _imageUrl = userData['profilePictureUrl'] ?? null;
         });
       }
@@ -180,7 +179,10 @@ class _ProfilePrestadorState extends State<ProfilePrestador> {
                 ),
               )
                   : ListTile(
-                title: Text(label),
+                title: Text(
+                  label,
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                ),
                 subtitle: isPassword ? Text("******") : Text(value),
               ),
             ),
@@ -229,7 +231,7 @@ class _ProfilePrestadorState extends State<ProfilePrestador> {
                   bottom: 0,
                   right: 0,
                   child: IconButton(
-                    icon: Icon(Icons.camera_alt, color: Colors.grey),
+                    icon: Icon(Icons.camera_alt, color: Colors.black),
                     onPressed: _pickImage,
                   ),
                 ),
@@ -238,7 +240,7 @@ class _ProfilePrestadorState extends State<ProfilePrestador> {
             SizedBox(height: 20),
             Text(
               _fullName,
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black),
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black),
             ),
             SizedBox(height: 20),
 
@@ -252,7 +254,7 @@ class _ProfilePrestadorState extends State<ProfilePrestador> {
                     SizedBox(width: 5),
                     Text(
                       _averageRating.toStringAsFixed(1),
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
@@ -262,7 +264,7 @@ class _ProfilePrestadorState extends State<ProfilePrestador> {
                     SizedBox(width: 5),
                     Text(
                       '$_completedServices Concluídos',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
@@ -272,7 +274,7 @@ class _ProfilePrestadorState extends State<ProfilePrestador> {
                     SizedBox(width: 5),
                     Text(
                       '$_totalRatings Avaliações',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
@@ -323,7 +325,7 @@ class _ProfilePrestadorState extends State<ProfilePrestador> {
               onPressed: _isEditing ? _saveProfile : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.yellow,
-                padding: EdgeInsets.symmetric(vertical: 16.0),
+                padding: EdgeInsets.symmetric(vertical: 16.0, horizontal: 24.0),
               ),
               child: Text('Salvar Alterações', style: TextStyle(fontSize: 16)),
             ),
@@ -333,5 +335,4 @@ class _ProfilePrestadorState extends State<ProfilePrestador> {
     );
   }
 }
-
 

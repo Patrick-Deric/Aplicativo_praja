@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'chatroom.dart'; // Import your chat room page
+import 'home_page.dart';
+import 'ongoing_services_contratante.dart';
+import 'profile_contratante.dart';
 
 class ChatListPage extends StatefulWidget {
   @override
@@ -10,6 +13,8 @@ class ChatListPage extends StatefulWidget {
 
 class _ChatListPageState extends State<ChatListPage> {
   User? currentUser = FirebaseAuth.instance.currentUser;
+
+  int _selectedIndex = 2; // Set this to 2 since Chat is the third item
 
   @override
   Widget build(BuildContext context) {
@@ -41,42 +46,77 @@ class _ChatListPageState extends State<ChatListPage> {
             itemBuilder: (context, index) {
               var chatData = chatList[index].data() as Map<String, dynamic>;
               var chatRoomId = chatData['chatRoomId'];
-              var lastMessage = chatData['lastMessage'] ?? '';
 
-              // Fetch the provider or contratante for display
-              var otherUserId = chatData.containsKey('providerId')
-                  ? chatData['providerId']
-                  : chatData['contratanteId'];
-
-              return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(otherUserId)
-                    .get(),
-                builder: (context, userSnapshot) {
-                  if (!userSnapshot.hasData) {
-                    return ListTile(
-                      title: Text('Carregando...'),
-                    );
+              // Fetch the latest message from the messages subcollection
+              return StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('chat_rooms')
+                    .doc(chatRoomId)
+                    .collection('messages')
+                    .orderBy('timestamp', descending: true)
+                    .limit(1) // Only get the last message
+                    .snapshots(),
+                builder: (context, messageSnapshot) {
+                  if (!messageSnapshot.hasData || messageSnapshot.data!.docs.isEmpty) {
+                    return Container(); // No messages yet
                   }
 
-                  var otherUser = userSnapshot.data!.data() as Map<String, dynamic>;
-                  var otherUserName = otherUser['fullName'] ?? 'Usuário';
+                  var lastMessageData = messageSnapshot.data!.docs.first.data() as Map<String, dynamic>;
+                  var lastMessage = lastMessageData['text'] ?? '';
 
-                  return ListTile(
-                    title: Text(otherUserName),
-                    subtitle: Text(lastMessage),
-                    onTap: () {
-                      // Navigate to the chat room page
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ChatRoomPage(
-                            chatRoomId: chatRoomId,
-                            providerId: otherUserId,
-                            serviceId: chatRoomId, // If you need to pass the service ID
-                          ),
+                  // Determine if this chat is with a provider or contratante
+                  var otherUserId = chatData.containsKey('providerId')
+                      ? chatData['providerId']
+                      : chatData['contratanteId'];
+
+                  // Fetch the other user's profile
+                  return FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance
+                        .collection(chatData.containsKey('providerId')
+                        ? 'prestadores_de_servico'
+                        : 'users')
+                        .doc(otherUserId)
+                        .get(),
+                    builder: (context, userSnapshot) {
+                      if (!userSnapshot.hasData) {
+                        return ListTile(
+                          title: Text('Carregando...'),
+                        );
+                      }
+
+                      var otherUser = userSnapshot.data!.data() as Map<String, dynamic>;
+                      var otherUserName = otherUser['fullName'] ?? 'Usuário';
+                      var otherUserProfilePic = otherUser['profilePictureUrl'] ?? null;
+
+                      return ListTile(
+                        leading: CircleAvatar(
+                          radius: 25,
+                          backgroundImage: otherUserProfilePic != null
+                              ? NetworkImage(otherUserProfilePic)
+                              : AssetImage('assets/anon.png') as ImageProvider,
                         ),
+                        title: Text(
+                          otherUserName,
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(
+                          lastMessage.isNotEmpty ? lastMessage : 'Sem mensagens',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                        onTap: () {
+                          // Navigate to the chat room page
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChatRoomPage(
+                                chatRoomId: chatRoomId,
+                                providerId: otherUserId,
+                                serviceId: chatRoomId, // If you need to pass the service ID
+                              ),
+                            ),
+                          );
+                        },
                       );
                     },
                   );
@@ -86,6 +126,37 @@ class _ChatListPageState extends State<ChatListPage> {
           );
         },
       ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex, // Set the selected index
+        selectedItemColor: Colors.yellow[700],
+        unselectedItemColor: Colors.grey,
+        items: [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.work), label: 'Serviços'),
+          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
+        ],
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+
+          if (index == 0) {
+            Navigator.push(context,
+                MaterialPageRoute(builder: (context) => HomePage()));
+            // Navigate to the home page if necessary
+          } else if (index == 1) {
+            Navigator.push(context,
+                MaterialPageRoute(builder: (context) => OngoingServicesContratantePage()));
+          } else if (index == 2) {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => ChatListPage()));
+          } else if (index == 3) {
+            Navigator.push(context,
+                MaterialPageRoute(builder: (context) => ProfileContratantePage()));
+          }
+        },
+      ),
     );
   }
 }
+

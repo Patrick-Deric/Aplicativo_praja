@@ -57,7 +57,7 @@ class _LoginPageState extends State<LoginPage> {
               SizedBox(height: 60),
               Center(
                 child: Text(
-                  'PJ',
+                  'PraJá',
                   style: TextStyle(
                     fontSize: 50,
                     fontWeight: FontWeight.bold,
@@ -155,12 +155,12 @@ class _LoginPageState extends State<LoginPage> {
                     ElevatedButton(
                       onPressed: _login,
                       style: ElevatedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(vertical: 16.0),
+                        padding: EdgeInsets.symmetric(vertical: 16.0, horizontal: 24.0),
                         backgroundColor: Colors.yellow[700],
                       ),
                       child: Text(
                         'Login',
-                        style: TextStyle(fontSize: 16),
+                          style: TextStyle(color: Colors.white, fontSize: 16),
                       ),
                     ),
                     SizedBox(height: 20),

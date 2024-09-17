@@ -459,20 +459,23 @@ class _RegisterPrestadorPageState extends State<RegisterPrestadorPage> {
                       ],
                     ),
 
-                    SizedBox(height: 40),
+                    SizedBox(height: 30),
 
                     // Submit Button
                     ElevatedButton(
                       onPressed: _register,
                       style: ElevatedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(vertical: 16.0),
+                          padding: EdgeInsets.symmetric(vertical: 16.0, horizontal: 24.0),
                         backgroundColor: Colors.yellow[700],
                       ),
                       child: Text(
                         'Registrar',
-                        style: TextStyle(fontSize: 16),
+                        style: TextStyle(fontSize: 16, color: Colors.white),
+
                       ),
+
                     ),
+                    SizedBox(height: 10)
                   ],
                 ),
               ),

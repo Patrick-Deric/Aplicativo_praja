@@ -194,7 +194,7 @@ class _RegisterUserPageState extends State<RegisterUserPage> {
                     ElevatedButton(
                       onPressed: _register,
                       style: ElevatedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(vertical: 16.0),
+                        padding: EdgeInsets.symmetric(vertical: 16.0, horizontal: 24.0),
                         backgroundColor: Colors.yellow[700],
                       ),
                       child: Text(
